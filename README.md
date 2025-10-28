@@ -17,7 +17,7 @@ To use a specific resolver in your package.json, you can reference it directly:
 ```json
 {
   "dependencies": {
-    "{{resolvername}}": "github:agentlang-hub/resolvers#main&path:/{{resolvername}}",
+    "{{resolvername}}": "github:agentlang-hub/resolvers#main&path:/{{resolvername}}"
   }
 }
 ```
