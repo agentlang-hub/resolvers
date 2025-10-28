@@ -8,7 +8,7 @@ To use a specific resolver in your package.json, you can reference it directly:
 ```json
 {
   "dependencies": {
-    "infoblox": "https://gitpkg.vercel.app/agentlang-hub/resolvers/{{resolvername}}?main"
+    "{{resolvername}}": "https://gitpkg.vercel.app/agentlang-hub/resolvers/{{resolvername}}?main"
   }
 }
 ```
@@ -17,7 +17,7 @@ To use a specific resolver in your package.json, you can reference it directly:
 ```json
 {
   "dependencies": {
-    "infoblox": "github:agentlang-hub/resolvers#main&path:/{{resolvername}}",
+    "{{resolvername}}": "github:agentlang-hub/resolvers#main&path:/{{resolvername}}",
   }
 }
 ```
