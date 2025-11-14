@@ -413,134 +413,540 @@ Represents an item on an invoice.
 
 Finalizes a draft invoice, making it ready for payment.
 
-**Parameters:**
-- `invoice_id` (String) - The ID of the invoice to finalize
+```http
+POST /stripe/FinalizeInvoice
+Content-Type: application/json
 
-**Usage:**
-```javascript
-await FinalizeInvoice({ invoice_id: "in_1234567890" })
+{
+    "invoice_id": "in_1STCriGqfeOLalDrB5ldRSXD"
+}
 ```
 
 ### SendInvoice
 
 Sends an invoice to the customer via email.
 
-**Parameters:**
-- `invoice_id` (String) - The ID of the invoice to send
+```http
+POST /stripe/SendInvoice
+Content-Type: application/json
 
-**Usage:**
-```javascript
-await SendInvoice({ invoice_id: "in_1234567890" })
+{
+    "invoice_id": "in_1STCriGqfeOLalDrB5ldRSXD"
+}
 ```
 
-## Examples
+## 🔧 API Reference
 
-### Creating a Customer
+### Customer
 
-```javascript
-const customer = await createCustomer({
-  attributes: new Map([
-    ['email', 'customer@example.com'],
-    ['name', 'John Doe'],
-    ['phone', '+1234567890']
-  ])
-});
+#### Create Customer
+```http
+POST /stripe/Customer
+Content-Type: application/json
+
+{
+    "email": "customer@example.com",
+    "name": "John Doe",
+    "phone": "+1234567890",
+    "description": "Customer description",
+    "balance": 0,
+    "currency": "usd",
+    "address": {
+        "line1": "123 Main St",
+        "city": "San Francisco",
+        "state": "CA",
+        "postal_code": "94102",
+        "country": "US"
+    },
+    "metadata": {
+        "custom_key": "custom_value"
+    }
+}
 ```
 
-### Creating a Product
-
-```javascript
-const product = await createProduct({
-  attributes: new Map([
-    ['name', 'Premium Plan'],
-    ['description', 'A premium subscription plan'],
-    ['type', 'service']
-  ])
-});
+#### Query Customer
+```http
+GET /stripe/Customer/{id}
 ```
 
-### Creating a Price
-
-```javascript
-const price = await createPrice({
-  attributes: new Map([
-    ['product', 'prod_1234567890'],
-    ['currency', 'usd'],
-    ['unit_amount', 2000], // $20.00
-    ['recurring', { interval: 'month' }]
-  ])
-});
+#### Query All Customers
+```http
+GET /stripe/Customer
 ```
 
-### Creating a Subscription
+#### Update Customer
+```http
+PATCH /stripe/Customer
+Content-Type: application/json
 
-```javascript
-const subscription = await createSubscription({
-  attributes: new Map([
-    ['customer', 'cus_1234567890'],
-    ['items', [{ price: 'price_1234567890' }]]
-  ])
-});
+{
+    "id": "cus_TQ2uIxxf77X4E4",
+    "email": "newemail@example.com",
+    "name": "Jane Doe",
+    "phone": "+1987654321"
+}
 ```
 
-### Creating an Invoice
+#### Delete Customer
+```http
+DELETE /stripe/Customer
+Content-Type: application/json
 
-```javascript
-const invoice = await createInvoice({
-  attributes: new Map([
-    ['customer', 'cus_1234567890'],
-    ['collection_method', 'send_invoice'],
-    ['days_until_due', 30]
-  ])
-});
+{
+    "id": "cus_TQ2uIxxf77X4E4"
+}
 ```
 
-### Creating a Payment Intent
+### Product
 
-```javascript
-const paymentIntent = await createPaymentIntent({
-  attributes: new Map([
-    ['amount', 2000], // $20.00
-    ['currency', 'usd'],
-    ['customer', 'cus_1234567890'],
-    ['payment_method_types', ['card']]
-  ])
-});
+#### Create Product
+```http
+POST /stripe/Product
+Content-Type: application/json
+
+{
+    "name": "Premium Plan",
+    "description": "A premium subscription plan",
+    "type": "service",
+    "active": true,
+    "metadata": {
+        "plan_type": "premium"
+    }
+}
 ```
 
-### Querying Entities
-
-```javascript
-// Query single entity by ID
-const customer = await queryCustomer({
-  queryAttributeValues: new Map([
-    ['__path__', '/customers/cus_1234567890']
-  ])
-});
-
-// Query all entities
-const customers = await queryCustomer({
-  queryAttributeValues: new Map()
-});
+#### Query Product
+```http
+GET /stripe/Product/{id}
 ```
 
-### Updating Entities
-
-```javascript
-const updatedCustomer = await updateCustomer(
-  existingCustomer,
-  new Map([
-    ['email', 'newemail@example.com'],
-    ['name', 'Jane Doe']
-  ])
-);
+#### Query All Products
+```http
+GET /stripe/Product
 ```
 
-### Deleting Entities
+#### Update Product
+```http
+PATCH /stripe/Product
+Content-Type: application/json
 
-```javascript
-const result = await deleteCustomer(existingCustomer);
-// Returns: { result: 'success' }
+{
+    "id": "prod_TQ37G5WScrvR9D",
+    "name": "Updated Product Name",
+    "description": "Updated description",
+    "active": true
+}
+```
+
+#### Delete Product
+```http
+DELETE /stripe/Product
+Content-Type: application/json
+
+{
+    "id": "prod_TQ37G5WScrvR9D"
+}
+```
+
+### Price
+
+#### Create Price
+```http
+POST /stripe/Price
+Content-Type: application/json
+
+{
+    "product": "prod_TQ37G5WScrvR9D",
+    "currency": "usd",
+    "unit_amount": 2000,
+    "recurring": {
+        "interval": "month"
+    },
+    "active": true
+}
+```
+
+#### Query Price
+```http
+GET /stripe/Price/{id}
+```
+
+#### Query All Prices
+```http
+GET /stripe/Price
+```
+
+#### Update Price
+```http
+PATCH /stripe/Price
+Content-Type: application/json
+
+{
+    "id": "price_1STD4TGqfeOLalDrqs602aFu",
+    "active": false
+}
+```
+
+#### Delete Price
+```http
+DELETE /stripe/Price
+Content-Type: application/json
+
+{
+    "id": "price_1STD4TGqfeOLalDrqs602aFu"
+}
+```
+
+### Subscription
+
+#### Create Subscription
+```http
+POST /stripe/Subscription
+Content-Type: application/json
+
+{
+    "customer": "cus_TQ2uIxxf77X4E4",
+    "items": [
+        {
+            "price": "price_1STD4TGqfeOLalDrqs602aFu"
+        }
+    ],
+    "collection_method": "charge_automatically",
+    "default_payment_method": "pm_1234567890"
+}
+```
+
+#### Query Subscription
+```http
+GET /stripe/Subscription/{id}
+```
+
+#### Query All Subscriptions
+```http
+GET /stripe/Subscription
+```
+
+#### Update Subscription
+```http
+PATCH /stripe/Subscription
+Content-Type: application/json
+
+{
+    "id": "sub_1234567890",
+    "items": [
+        {
+            "price": "price_1STD4TGqfeOLalDrqs602aFu",
+            "quantity": 2
+        }
+    ],
+    "cancel_at_period_end": false
+}
+```
+
+#### Delete Subscription
+```http
+DELETE /stripe/Subscription
+Content-Type: application/json
+
+{
+    "id": "sub_1234567890"
+}
+```
+
+### Invoice
+
+#### Create Invoice
+```http
+POST /stripe/Invoice
+Content-Type: application/json
+
+{
+    "customer": "cus_TQ2uIxxf77X4E4",
+    "collection_method": "send_invoice",
+    "days_until_due": 30,
+    "description": "Monthly subscription invoice"
+}
+```
+
+#### Query Invoice
+```http
+GET /stripe/Invoice/{id}
+```
+
+#### Query All Invoices
+```http
+GET /stripe/Invoice
+```
+
+#### Update Invoice
+```http
+PATCH /stripe/Invoice
+Content-Type: application/json
+
+{
+    "id": "in_1STCriGqfeOLalDrB5ldRSXD",
+    "description": "Updated invoice description",
+    "metadata": {
+        "order_id": "12345"
+    }
+}
+```
+
+#### Delete Invoice
+```http
+DELETE /stripe/Invoice
+Content-Type: application/json
+
+{
+    "id": "in_1STCriGqfeOLalDrB5ldRSXD"
+}
+```
+
+### PaymentIntent
+
+#### Create Payment Intent
+```http
+POST /stripe/PaymentIntent
+Content-Type: application/json
+
+{
+    "amount": 2000,
+    "currency": "usd",
+    "customer": "cus_TQ2uIxxf77X4E4",
+    "payment_method_types": ["card"],
+    "description": "Payment for order #12345",
+    "metadata": {
+        "order_id": "12345"
+    }
+}
+```
+
+#### Query Payment Intent
+```http
+GET /stripe/PaymentIntent/{id}
+```
+
+#### Query All Payment Intents
+```http
+GET /stripe/PaymentIntent
+```
+
+#### Update Payment Intent
+```http
+PATCH /stripe/PaymentIntent
+Content-Type: application/json
+
+{
+    "id": "pi_3STCC2GqfeOLalDr07Xi8gdF",
+    "amount": 2500,
+    "description": "Updated payment description"
+}
+```
+
+#### Delete Payment Intent
+```http
+DELETE /stripe/PaymentIntent
+Content-Type: application/json
+
+{
+    "id": "pi_3STCC2GqfeOLalDr07Xi8gdF"
+}
+```
+
+### Charge
+
+#### Create Charge
+```http
+POST /stripe/Charge
+Content-Type: application/json
+
+{
+    "amount": 2000,
+    "currency": "usd",
+    "customer": "cus_TQ2uIxxf77X4E4",
+    "payment_intent": "pi_3STCC2GqfeOLalDr07Xi8gdF",
+    "description": "Charge for order #12345"
+}
+```
+
+#### Query Charge
+```http
+GET /stripe/Charge/{id}
+```
+
+#### Query All Charges
+```http
+GET /stripe/Charge
+```
+
+#### Update Charge
+```http
+PATCH /stripe/Charge
+Content-Type: application/json
+
+{
+    "id": "ch_1234567890",
+    "description": "Updated charge description",
+    "metadata": {
+        "order_id": "12345"
+    }
+}
+```
+
+#### Delete Charge
+```http
+DELETE /stripe/Charge
+Content-Type: application/json
+
+{
+    "id": "ch_1234567890"
+}
+```
+
+### Refund
+
+#### Create Refund
+```http
+POST /stripe/Refund
+Content-Type: application/json
+
+{
+    "charge": "ch_1234567890",
+    "amount": 1000,
+    "reason": "requested_by_customer",
+    "description": "Refund for order cancellation"
+}
+```
+
+#### Query Refund
+```http
+GET /stripe/Refund/{id}
+```
+
+#### Query All Refunds
+```http
+GET /stripe/Refund
+```
+
+#### Update Refund
+```http
+PATCH /stripe/Refund
+Content-Type: application/json
+
+{
+    "id": "re_1234567890",
+    "metadata": {
+        "reason": "customer_request"
+    }
+}
+```
+
+#### Delete Refund
+```http
+DELETE /stripe/Refund
+Content-Type: application/json
+
+{
+    "id": "re_1234567890"
+}
+```
+
+### Payout
+
+#### Create Payout
+```http
+POST /stripe/Payout
+Content-Type: application/json
+
+{
+    "amount": 10000,
+    "currency": "usd",
+    "destination": "acct_1234567890",
+    "method": "standard",
+    "description": "Monthly payout"
+}
+```
+
+#### Query Payout
+```http
+GET /stripe/Payout/{id}
+```
+
+#### Query All Payouts
+```http
+GET /stripe/Payout
+```
+
+#### Update Payout
+```http
+PATCH /stripe/Payout
+Content-Type: application/json
+
+{
+    "id": "po_1234567890",
+    "metadata": {
+        "payout_reason": "monthly"
+    }
+}
+```
+
+#### Delete Payout
+```http
+DELETE /stripe/Payout
+Content-Type: application/json
+
+{
+    "id": "po_1234567890"
+}
+```
+
+### InvoiceItem
+
+#### Create Invoice Item
+```http
+POST /stripe/InvoiceItem
+Content-Type: application/json
+
+{
+    "customer": "cus_TQ2uIxxf77X4E4",
+    "amount": 5000,
+    "currency": "usd",
+    "description": "Service fee",
+    "discountable": true,
+    "quantity": 1
+}
+```
+
+#### Query Invoice Item
+```http
+GET /stripe/InvoiceItem/{id}
+```
+
+#### Query All Invoice Items
+```http
+GET /stripe/InvoiceItem
+```
+
+#### Update Invoice Item
+```http
+PATCH /stripe/InvoiceItem
+Content-Type: application/json
+
+{
+    "id": "ii_1STCpoGqfeOLalDr8m4mThXk",
+    "amount": 6000,
+    "description": "Updated service fee"
+}
+```
+
+#### Delete Invoice Item
+```http
+DELETE /stripe/InvoiceItem
+Content-Type: application/json
+
+{
+    "id": "ii_1STCpoGqfeOLalDr8m4mThXk"
+}
 ```
 
 ## Error Handling
@@ -584,6 +990,6 @@ This will poll for new charges at regular intervals (configurable via environmen
 - Map fields contain nested objects with additional properties
 - Array fields may contain complex objects
 
-## API Reference
+## Additional Resources
 
 For detailed API documentation, refer to the [Stripe API Reference](https://stripe.com/docs/api).
