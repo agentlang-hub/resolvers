@@ -710,42 +710,26 @@ async function getAndProcessRecords(resolver, entityType) {
                 console.log(`JIRA RESOLVER: Processing issue ${issue.id}`);
                 
                 const mappedData = toIssue(issue, baseUrl);
-                const inst = {
-                    id: mappedData.id,
-                    type: entityType,
-                    data: mappedData,
-                    timestamp: new Date().toISOString()
-                };
-                
-                await resolver.onSubscription(inst, true);
+                const entityInstance = asInstance(mappedData, 'Issue');
+                await resolver.onSubscription(entityInstance, true);
             }
         } else if (entityType === 'projects' && result.values) {
             for (const project of result.values) {
                 console.log(`JIRA RESOLVER: Processing project ${project.id}`);
                 
                 const mappedData = toProject(project, baseUrl);
-                const inst = {
-                    id: mappedData.id,
-                    type: entityType,
-                    data: mappedData,
-                    timestamp: new Date().toISOString()
-                };
-                
-                await resolver.onSubscription(inst, true);
+                const entityInstance = asInstance(mappedData, 'Project');
+
+                console.log("a11111", entityInstance)
+                await resolver.onSubscription(entityInstance, true);
             }
         } else if (entityType === 'issueTypes' && Array.isArray(result)) {
             for (const issueType of result) {
                 console.log(`JIRA RESOLVER: Processing issue type ${issueType.id}`);
                 
                 const mappedData = toIssueType(issueType, '');
-                const inst = {
-                    id: mappedData.id,
-                    type: entityType,
-                    data: mappedData,
-                    timestamp: new Date().toISOString()
-                };
-                
-                await resolver.onSubscription(inst, true);
+                const entityInstance = asInstance(mappedData, 'IssueType');
+                await resolver.onSubscription(entityInstance, true);
             }
         }
     } catch (error) {
