@@ -14,7 +14,8 @@ pnpm install
 **Option A: Direct Access Token (Testing)**
 ```bash
 export GMAIL_ACCESS_TOKEN="your-access-token-here"
-export GMAIL_POLL_INTERVAL_MINUTES="15"  # Optional
+export GMAIL_POLL_INTERVAL_MINUTES="15"  # Optional: Polling interval for subscriptions
+export GMAIL_POLL_MINUTES="10"  # Optional: How far back to poll emails (default: 10 minutes)
 ```
 
 **Option B: OAuth2 Client Credentials (Production)**
@@ -22,7 +23,8 @@ export GMAIL_POLL_INTERVAL_MINUTES="15"  # Optional
 export GMAIL_CLIENT_ID="your-client-id-here"
 export GMAIL_CLIENT_SECRET="your-client-secret-here"
 export GMAIL_REFRESH_TOKEN="your-refresh-token-here"
-export GMAIL_POLL_INTERVAL_MINUTES="15"  # Optional
+export GMAIL_POLL_INTERVAL_MINUTES="15"  # Optional: Polling interval for subscriptions
+export GMAIL_POLL_MINUTES="10"  # Optional: How far back to poll emails (default: 10 minutes)
 ```
 
 3. **Run the resolver**:
@@ -36,19 +38,21 @@ The resolver supports two authentication methods:
 
 ### Method 1: Direct Access Token (Recommended for testing)
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `GMAIL_ACCESS_TOKEN` | Gmail API access token | `ya29.a0AfH6SMC...` |
-| `GMAIL_POLL_INTERVAL_MINUTES` | Polling interval for subscriptions | `15` |
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `GMAIL_ACCESS_TOKEN` | Gmail API access token | - | `ya29.a0AfH6SMC...` |
+| `GMAIL_POLL_INTERVAL_MINUTES` | Polling interval for subscriptions | `15` | `10` |
+| `GMAIL_POLL_MINUTES` | How far back to poll emails (in minutes) | `10` | `30` |
 
 ### Method 2: OAuth2 Client Credentials (Recommended for production)
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `GMAIL_CLIENT_ID` | Google OAuth2 Client ID | `123456789.apps.googleusercontent.com` |
-| `GMAIL_CLIENT_SECRET` | Google OAuth2 Client Secret | `GOCSPX-abcdef123456` |
-| `GMAIL_REFRESH_TOKEN` | OAuth2 Refresh Token | `1//04abcdef123456` |
-| `GMAIL_POLL_INTERVAL_MINUTES` | Polling interval for subscriptions | `15` |
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `GMAIL_CLIENT_ID` | Google OAuth2 Client ID | - | `123456789.apps.googleusercontent.com` |
+| `GMAIL_CLIENT_SECRET` | Google OAuth2 Client Secret | - | `GOCSPX-abcdef123456` |
+| `GMAIL_REFRESH_TOKEN` | OAuth2 Refresh Token | - | `1//04abcdef123456` |
+| `GMAIL_POLL_INTERVAL_MINUTES` | Polling interval for subscriptions | `15` | `10` |
+| `GMAIL_POLL_MINUTES` | How far back to poll emails (in minutes) | `10` | `30` |
 
 ### Getting Gmail Credentials
 
@@ -221,7 +225,25 @@ The resolver supports real-time subscriptions for:
 - **Emails**: Polls for new emails and updates
 - **Labels**: Monitors label changes and updates
 
-Subscriptions are configured via the `GMAIL_POLL_INTERVAL_MINUTES` environment variable (default: 15 minutes).
+### Email Polling Configuration
+
+When polling for emails, the resolver uses Gmail's search API to fetch emails from a specific time window:
+
+- **`GMAIL_POLL_MINUTES`**: Controls how far back in time to poll emails (default: 10 minutes)
+  - The resolver calculates a timestamp for N minutes ago and uses Gmail's `after:` search query
+  - Only emails received after this timestamp will be included in the subscription
+  - Example: If set to `30`, it will poll emails from the last 30 minutes
+
+- **`GMAIL_POLL_INTERVAL_MINUTES`**: Controls how often to poll for new emails (default: 15 minutes)
+  - This determines the frequency of subscription checks
+  - Example: If set to `5`, it will check for new emails every 5 minutes
+
+**Example Configuration:**
+```bash
+# Poll emails from the last 30 minutes, check every 5 minutes
+export GMAIL_POLL_MINUTES="30"
+export GMAIL_POLL_INTERVAL_MINUTES="5"
+```
 
 ## Error Handling
 

@@ -10,7 +10,7 @@ entity Attachments {
 }
 
 entity Email {
-    id String @id,
+    id UUID @id @default(uuid()),
     sender String @optional,
     recipients String @optional,
     date String @optional,
@@ -26,7 +26,7 @@ entity LabelColor {
 }
 
 entity Label {
-    id String @id,
+    id UUID @id @default(uuid()),
     name String @optional,
     message_list_visibility String @optional,
     label_list_visibility String @optional,

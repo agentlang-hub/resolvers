@@ -253,11 +253,12 @@ const makeDeleteRequest = async (endpoint) => {
 
 // Email functions
 export const createEmail = async (env, attributes) => {
-    const from = attributes.attributes.get('from');
-    const to = attributes.attributes.get('to');
+    const from = attributes.attributes.get('sender');
+    const to = attributes.attributes.get('recipients');
     const subject = attributes.attributes.get('subject');
     const body = attributes.attributes.get('body');
     const headers = attributes.attributes.get('headers');
+    const threadId = attributes.attributes.get('thread_id');
 
     let headerString = '';
     if (headers) {
@@ -275,9 +276,12 @@ export const createEmail = async (env, attributes) => {
     const base64EncodedEmail = Buffer.from(email).toString('base64');
 
     try {
-        const result = await makePostRequest('/gmail/v1/users/me/messages/send', {
-            raw: base64EncodedEmail
-        });
+        const requestBody = { raw: base64EncodedEmail };
+        if (threadId) {
+            requestBody.threadId = threadId;
+        }
+
+        const result = await makePostRequest('/gmail/v1/users/me/messages/send', requestBody);
         return {"result": "success", "id": result.id, "thread_id": result.threadId};
     } catch (error) {
         console.error(`GMAIL RESOLVER: Failed to create email: ${error}`);
@@ -569,7 +573,13 @@ async function getAndProcessRecords(resolver, entityType) {
         let endpoint;
         switch (entityType) {
             case 'emails':
-                endpoint = '/gmail/v1/users/me/messages?maxResults=100';
+                const pollMinutes = parseInt(process.env.GMAIL_POLL_MINUTES) || 10;
+                const pollSeconds = pollMinutes * 60;
+                const afterTimestamp = Math.floor((Date.now() - (pollSeconds * 1000)) / 1000);
+                
+                const searchQuery = `after:${afterTimestamp}`;
+                endpoint = `/gmail/v1/users/me/messages?maxResults=100&q=${encodeURIComponent(searchQuery)}`;
+                console.log(`GMAIL RESOLVER: Polling emails from last ${pollMinutes} minutes (after timestamp: ${afterTimestamp})`);
                 break;
             case 'labels':
                 endpoint = '/gmail/v1/users/me/labels';
@@ -595,15 +605,8 @@ async function getAndProcessRecords(resolver, entityType) {
                     };
                 }, {}) || {};
                 const mappedData = toEmail(messageDetail, headers);
-                
-                const inst = {
-                    id: mappedData.id,
-                    type: entityType,
-                    data: mappedData,
-                    timestamp: new Date().toISOString()
-                };
-                
-                await resolver.onSubscription(inst, true);
+                const entityInstance = asInstance(mappedData, 'Email');
+                await resolver.onSubscription(entityInstance, true);
             }
         } else if (entityType === 'labels' && result.labels) {
             for (let i = 0; i < result.labels.length; ++i) {
@@ -611,14 +614,8 @@ async function getAndProcessRecords(resolver, entityType) {
                 console.log(`GMAIL RESOLVER: Processing label ${label.id}`);
                 
                 const mappedData = toLabel(label);
-                const inst = {
-                    id: mappedData.id,
-                    type: entityType,
-                    data: mappedData,
-                    timestamp: new Date().toISOString()
-                };
-                
-                await resolver.onSubscription(inst, true);
+                const entityInstance = asInstance(mappedData, 'Label');
+                await resolver.onSubscription(entityInstance, true);
             }
         }
     } catch (error) {
