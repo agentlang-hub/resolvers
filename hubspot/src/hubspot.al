@@ -47,7 +47,7 @@ entity Deal {
     created_date String @optional,
     deal_name String @optional,
     deal_stage String @optional,
-    amount String @optional,
+    amount Decimal @optional,
     close_date String @optional,
     deal_type String @optional,
     description String @optional,
