@@ -1,6 +1,6 @@
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
 
-const makeInstance = al_module.makeInstance
 
 // Mapper functions for Jira API responses to Agentlang entities
 function toIssue(issue, baseUrl) {
@@ -114,8 +114,8 @@ async function getCloudData() {
         return { cloudId, baseUrl };
     }
 
-    cloudId = process.env.JIRA_CLOUD_ID;
-    baseUrl = process.env.JIRA_BASE_URL;
+    cloudId = getLocalEnv("JIRA_CLOUD_ID");
+    baseUrl = getLocalEnv("JIRA_BASE_URL");
 
     if (!cloudId || !baseUrl) {
         throw new Error('Jira configuration is required: JIRA_CLOUD_ID and JIRA_BASE_URL');
@@ -131,11 +131,11 @@ async function getAccessToken() {
         return accessToken;
     }
 
-    const directToken = process.env.JIRA_ACCESS_TOKEN;
-    const jiraEmail = process.env.JIRA_EMAIL;
-    const jiraApiToken = process.env.JIRA_API_TOKEN;
-    const clientId = process.env.JIRA_CLIENT_ID;
-    const clientSecret = process.env.JIRA_CLIENT_SECRET;
+    const directToken = getLocalEnv("JIRA_ACCESS_TOKEN");
+    const jiraEmail = getLocalEnv("JIRA_EMAIL");
+    const jiraApiToken = getLocalEnv("JIRA_API_TOKEN");
+    const clientId = getLocalEnv("JIRA_CLIENT_ID");
+    const clientSecret = getLocalEnv("JIRA_CLIENT_SECRET");
 
     // Method 1: Direct access token
     if (directToken) {
@@ -203,7 +203,7 @@ async function getAccessToken() {
 const makeRequest = async (endpoint, options = {}) => {
     const { cloudId, baseUrl } = await getCloudData();
     
-    let token = process.env.JIRA_ACCESS_TOKEN;
+    let token = getLocalEnv("JIRA_ACCESS_TOKEN");
     
     // If no direct token provided, try to get one via OAuth2 or API token
     if (!token) {
@@ -754,7 +754,7 @@ async function handleSubsIssueTypes(resolver) {
 
 export async function subsIssues(resolver) {
     await handleSubsIssues(resolver);
-    const intervalMinutes = parseInt(process.env.JIRA_POLL_INTERVAL_MINUTES) || 5;
+    const intervalMinutes = parseInt(getLocalEnv("JIRA_POLL_INTERVAL_MINUTES")) || 5;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`JIRA RESOLVER: Setting issues polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -764,7 +764,7 @@ export async function subsIssues(resolver) {
 
 export async function subsProjects(resolver) {
     await handleSubsProjects(resolver);
-    const intervalMinutes = parseInt(process.env.JIRA_POLL_INTERVAL_MINUTES) || 5;
+    const intervalMinutes = parseInt(getLocalEnv("JIRA_POLL_INTERVAL_MINUTES")) || 5;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`JIRA RESOLVER: Setting projects polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -774,7 +774,7 @@ export async function subsProjects(resolver) {
 
 export async function subsIssueTypes(resolver) {
     await handleSubsIssueTypes(resolver);
-    const intervalMinutes = parseInt(process.env.JIRA_POLL_INTERVAL_MINUTES) || 5;
+    const intervalMinutes = parseInt(getLocalEnv("JIRA_POLL_INTERVAL_MINUTES")) || 5;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`JIRA RESOLVER: Setting issue types polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {

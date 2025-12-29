@@ -1,10 +1,10 @@
-const al_integmanager = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/integrations.js`)
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
-
-const makeInstance = al_module.makeInstance
+// Import agentlang modules
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
+import { getIntegrationConfig } from "agentlang/out/runtime/integrations.js";
 
 function getConfig(k) {
-    return al_integmanager.getIntegrationConfig('infoblox', k)
+    return getIntegrationConfig('infoblox', k)
 }
 
 const getResponseBody = async (response) => {
@@ -22,9 +22,9 @@ const getResponseBody = async (response) => {
 
 // Generic HTTP functions
 const makeRequest = async (endpoint, options = {}) => {
-    const baseUrl = getConfig('baseUrl') || process.env.INFOBLOX_BASE_URL
-    const user = getConfig('user') || process.env.INFOBLOX_USERNAME
-    const password = getConfig('password') || process.env.INFOBLOX_PASSWORD
+    const baseUrl = getConfig('baseUrl') || getLocalEnv("INFOBLOX_BASE_URL")
+    const user = getConfig('user') || getLocalEnv("INFOBLOX_USERNAME")
+    const password = getConfig('password') || getLocalEnv("INFOBLOX_PASSWORD")
     const authHeader = 'Basic ' + btoa(`${user}:${password}`)
     
     const url = `${baseUrl}${endpoint}`;

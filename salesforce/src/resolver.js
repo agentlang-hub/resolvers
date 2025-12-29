@@ -1,6 +1,6 @@
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
 
-const makeInstance = al_module.makeInstance
 
 function toContact(contact) {
     return {
@@ -140,9 +140,9 @@ async function getAccessToken() {
         return accessToken;
     }
 
-    const clientId = process.env.SALESFORCE_CLIENT_ID;
-    const clientSecret = process.env.SALESFORCE_CLIENT_SECRET;
-    const instanceUrl = process.env.SALESFORCE_BASE_URL || process.env.SALESFORCE_INSTANCE_URL;
+    const clientId = getLocalEnv("SALESFORCE_CLIENT_ID");
+    const clientSecret = getLocalEnv("SALESFORCE_CLIENT_SECRET");
+    const instanceUrl = getLocalEnv("SALESFORCE_BASE_URL") || getLocalEnv("SALESFORCE_INSTANCE_URL");
 
     if (!clientId || !clientSecret || !instanceUrl) {
         throw new Error('Salesforce OAuth2 configuration is required: SALESFORCE_CLIENT_ID, SALESFORCE_CLIENT_SECRET, and SALESFORCE_INSTANCE_URL');
@@ -192,8 +192,8 @@ async function getAccessToken() {
 
 // Generic HTTP functions
 const makeRequest = async (endpoint, options = {}) => {
-    const baseUrl = process.env.SALESFORCE_BASE_URL || process.env.SALESFORCE_INSTANCE_URL
-    let token = process.env.SALESFORCE_ACCESS_TOKEN;
+    const baseUrl = getLocalEnv("SALESFORCE_BASE_URL") || getLocalEnv("SALESFORCE_INSTANCE_URL")
+    let token = getLocalEnv("SALESFORCE_ACCESS_TOKEN");
     
     // If no direct token provided, try to get one via OAuth2
     if (!token) {
@@ -903,7 +903,7 @@ async function handleSubsArticles(resolver) {
 
 export async function subsContacts(resolver) {
     await handleSubsContacts(resolver);
-    const intervalMinutes = parseInt(process.env.SALESFORCE_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("SALESFORCE_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`SALESFORCE RESOLVER: Setting contacts polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -913,7 +913,7 @@ export async function subsContacts(resolver) {
 
 export async function subsLeads(resolver) {
     await handleSubsLeads(resolver);
-    const intervalMinutes = parseInt(process.env.SALESFORCE_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("SALESFORCE_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`SALESFORCE RESOLVER: Setting leads polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -923,7 +923,7 @@ export async function subsLeads(resolver) {
 
 export async function subsAccounts(resolver) {
     await handleSubsAccounts(resolver);
-    const intervalMinutes = parseInt(process.env.SALESFORCE_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("SALESFORCE_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`SALESFORCE RESOLVER: Setting accounts polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -933,7 +933,7 @@ export async function subsAccounts(resolver) {
 
 export async function subsOpportunities(resolver) {
     await handleSubsOpportunities(resolver);
-    const intervalMinutes = parseInt(process.env.SALESFORCE_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("SALESFORCE_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`SALESFORCE RESOLVER: Setting opportunities polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -943,7 +943,7 @@ export async function subsOpportunities(resolver) {
 
 export async function subsTickets(resolver) {
     await handleSubsTickets(resolver);
-    const intervalMinutes = parseInt(process.env.SALESFORCE_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("SALESFORCE_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`SALESFORCE RESOLVER: Setting tickets polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -953,7 +953,7 @@ export async function subsTickets(resolver) {
 
 export async function subsArticles(resolver) {
     await handleSubsArticles(resolver);
-    const intervalMinutes = parseInt(process.env.SALESFORCE_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("SALESFORCE_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`SALESFORCE RESOLVER: Setting articles polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {

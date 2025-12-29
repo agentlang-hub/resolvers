@@ -1,6 +1,6 @@
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
-
-const makeInstance = al_module.makeInstance
+// Import agentlang modules
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
 
 // Mapper functions for Google Drive API responses to Agentlang entities
 function toDocument(file) {
@@ -47,8 +47,8 @@ function toDrive(drive) {
 }
 
 function asInstance(entity, entityType) {
-    const instanceMap = new Map(Object.entries(entity))
-    return makeInstance('googledrive', entityType, instanceMap)
+  const instanceMap = new Map(Object.entries(entity));
+  return makeInstance("googledrive", entityType, instanceMap);
 }
 
 const getResponseBody = async (response) => {
@@ -86,10 +86,10 @@ async function getAccessToken() {
         return accessToken;
     }
 
-    const directToken = process.env.GOOGLE_ACCESS_TOKEN;
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+    const directToken = getLocalEnv("GOOGLE_ACCESS_TOKEN");
+    const clientId = getLocalEnv("GOOGLE_CLIENT_ID");
+    const clientSecret = getLocalEnv("GOOGLE_CLIENT_SECRET");
+    const refreshToken = getLocalEnv("GOOGLE_REFRESH_TOKEN");
 
     // Method 1: Direct access token
     if (directToken) {
@@ -148,7 +148,7 @@ async function getAccessToken() {
 
 // Generic HTTP functions
 const makeRequest = async (endpoint, options = {}) => {
-    let token = process.env.GOOGLE_ACCESS_TOKEN;
+    let token = getLocalEnv("GOOGLE_ACCESS_TOKEN");
     
     // If no direct token provided, try to get one via OAuth2
     if (!token) {
@@ -252,7 +252,7 @@ const makeDeleteRequest = async (endpoint) => {
 const makeFileContentRequest = async (endpoint) => {
     console.log(`GOOGLE DRIVE RESOLVER: Downloading file content from Google Drive: ${endpoint}\n`);
     
-    let token = process.env.GOOGLE_ACCESS_TOKEN;
+    let token = getLocalEnv("GOOGLE_ACCESS_TOKEN");
     
     if (!token) {
         try {
@@ -549,7 +549,7 @@ export const uploadFile = async (env, attributes) => {
     }
 
     try {
-        let token = process.env.GOOGLE_ACCESS_TOKEN;
+        let token = getLocalEnv("GOOGLE_ACCESS_TOKEN");
         if (!token) {
             token = await getAccessToken();
         }
@@ -618,7 +618,7 @@ export const uploadLocalFile = async (fileName, uploadName) => {
     console.log(`GOOGLE DRIVE RESOLVER: Uploading local file from ${localFilePath} to Google Drive\n`);
     
     try {
-        let token = process.env.GOOGLE_ACCESS_TOKEN;
+        let token = getLocalEnv("GOOGLE_ACCESS_TOKEN");
         if (!token) {
             token = await getAccessToken();
         }
@@ -848,7 +848,7 @@ async function handleSubsFolders(resolver) {
 
 export async function subsDocuments(resolver) {
     await handleSubsDocuments(resolver);
-    const intervalMinutes = parseInt(process.env.GOOGLE_DRIVE_POLL_INTERVAL_MINUTES) || 60;
+    const intervalMinutes = parseInt(getLocalEnv("GOOGLE_DRIVE_POLL_INTERVAL_MINUTES")) || 60;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`GOOGLE DRIVE RESOLVER: Setting documents polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -858,7 +858,7 @@ export async function subsDocuments(resolver) {
 
 export async function subsFolders(resolver) {
     await handleSubsFolders(resolver);
-    const intervalMinutes = parseInt(process.env.GOOGLE_DRIVE_POLL_INTERVAL_MINUTES) || 60;
+    const intervalMinutes = parseInt(getLocalEnv("GOOGLE_DRIVE_POLL_INTERVAL_MINUTES")) || 60;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`GOOGLE DRIVE RESOLVER: Setting folders polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {

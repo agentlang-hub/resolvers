@@ -1,6 +1,5 @@
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`);
-
-const makeInstance = al_module.makeInstance;
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
 
 function asInstance(entity, entityType) {
     if (!entity || typeof entity !== 'object') {
@@ -23,8 +22,8 @@ const getResponseBody = async (response) => {
     }
 };
 
-const STRIPE_BASE_URL = process.env.STRIPE_BASE_URL || 'https://api.stripe.com';
-const STRIPE_API_VERSION = process.env.STRIPE_API_VERSION;
+const STRIPE_BASE_URL = getLocalEnv("STRIPE_BASE_URL") || 'https://api.stripe.com';
+const STRIPE_API_VERSION = getLocalEnv("STRIPE_API_VERSION");
 
 function mapToPlainObject(value) {
     if (value instanceof Map) {
@@ -146,7 +145,7 @@ function buildQueryString(params) {
 }
 
 const makeRequest = async (endpoint, options = {}) => {
-    const apiKey = process.env.STRIPE_API_KEY;
+    const apiKey = getLocalEnv("STRIPE_API_KEY");
 
     if (!apiKey) {
         throw new Error('Stripe API key is required');
@@ -868,7 +867,7 @@ export const deletePayout = async (env, attributes) => {
 };
 
 // Subscription helpers for polling
-const STRIPE_DEFAULT_POLL_INTERVAL_MINUTES = parseInt(process.env.STRIPE_POLL_INTERVAL_MINUTES || '15', 10);
+const STRIPE_DEFAULT_POLL_INTERVAL_MINUTES = parseInt(getLocalEnv("STRIPE_POLL_INTERVAL_MINUTES") || '15', 10);
 
 function getPollingIntervalMs() {
     const minutes = Number.isNaN(STRIPE_DEFAULT_POLL_INTERVAL_MINUTES)

@@ -1,10 +1,10 @@
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
-
-const makeInstance = al_module.makeInstance
+// Import agentlang modules
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
 
 function asInstance(entity, entityType) {
-    const instanceMap = new Map(Object.entries(entity))
-    return makeInstance('hubspot', entityType, instanceMap)
+  const instanceMap = new Map(Object.entries(entity));
+  return makeInstance("hubspot", entityType, instanceMap);
 }
 
 const getResponseBody = async (response) => {
@@ -22,8 +22,8 @@ const getResponseBody = async (response) => {
 
 // Generic HTTP functions
 const makeRequest = async (endpoint, options = {}) => {
-    const baseUrl =  process.env.HUBSPOT_BASE_URL || 'https://api.hubapi.com'
-    const accessToken =  process.env.HUBSPOT_ACCESS_TOKEN
+    const baseUrl =  getLocalEnv("HUBSPOT_BASE_URL") || 'https://api.hubapi.com'
+    const accessToken =  getLocalEnv("HUBSPOT_ACCESS_TOKEN")
     
     if (!accessToken) {
         throw new Error('HubSpot access token is required');
@@ -634,7 +634,7 @@ async function handleSubsTasks(resolver) {
 
 export async function subsContacts(resolver) {
     await handleSubsContacts(resolver);
-    const intervalMinutes = parseInt(process.env.HUBSPOT_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("HUBSPOT_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`HUBSPOT RESOLVER: Setting contacts polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -644,7 +644,7 @@ export async function subsContacts(resolver) {
 
 export async function subsCompanies(resolver) {
     await handleSubsCompanies(resolver);
-    const intervalMinutes = parseInt(process.env.HUBSPOT_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("HUBSPOT_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`HUBSPOT RESOLVER: Setting companies polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -654,7 +654,7 @@ export async function subsCompanies(resolver) {
 
 export async function subsDeals(resolver) {
     await handleSubsDeals(resolver);
-    const intervalMinutes = parseInt(process.env.HUBSPOT_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("HUBSPOT_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`HUBSPOT RESOLVER: Setting deals polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -664,7 +664,7 @@ export async function subsDeals(resolver) {
 
 export async function subsOwners(resolver) {
     await handleSubsOwners(resolver);
-    const intervalMinutes = parseInt(process.env.HUBSPOT_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("HUBSPOT_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`HUBSPOT RESOLVER: Setting owners polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -674,7 +674,7 @@ export async function subsOwners(resolver) {
 
 export async function subsTasks(resolver) {
     await handleSubsTasks(resolver);
-    const intervalMinutes = parseInt(process.env.HUBSPOT_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("HUBSPOT_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`HUBSPOT RESOLVER: Setting tasks polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
