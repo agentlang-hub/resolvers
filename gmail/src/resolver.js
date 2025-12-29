@@ -1,6 +1,6 @@
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
-
-const makeInstance = al_module.makeInstance
+// Import agentlang modules
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
 
 // Mapper functions for Gmail API responses to Agentlang entities
 function toEmail(messageDetail, headers) {
@@ -70,8 +70,8 @@ function processParts(parts, bodyObj, attachments) {
 }
 
 function asInstance(entity, entityType) {
-    const instanceMap = new Map(Object.entries(entity))
-    return makeInstance('gmail', entityType, instanceMap)
+  const instanceMap = new Map(Object.entries(entity));
+  return makeInstance("gmail", entityType, instanceMap);
 }
 
 const getResponseBody = async (response) => {
@@ -97,9 +97,9 @@ async function getAccessToken() {
         return accessToken;
     }
 
-    const clientId = process.env.GMAIL_CLIENT_ID;
-    const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-    const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
+    const clientId = getLocalEnv("GMAIL_CLIENT_ID");
+    const clientSecret = getLocalEnv("GMAIL_CLIENT_SECRET");
+    const refreshToken = getLocalEnv("GMAIL_REFRESH_TOKEN");
 
     if (!clientId || !clientSecret || !refreshToken) {
         throw new Error('Gmail OAuth2 configuration is required: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN');
@@ -150,7 +150,7 @@ async function getAccessToken() {
 
 // Generic HTTP functions
 const makeRequest = async (endpoint, options = {}) => {
-    let token = process.env.GMAIL_ACCESS_TOKEN;
+    let token = getLocalEnv("GMAIL_ACCESS_TOKEN");
     
     // If no direct token provided, try to get one via OAuth2
     if (!token) {
@@ -573,7 +573,7 @@ async function getAndProcessRecords(resolver, entityType) {
         let endpoint;
         switch (entityType) {
             case 'emails':
-                const pollMinutes = parseInt(process.env.GMAIL_POLL_MINUTES) || 10;
+                const pollMinutes = parseInt(getLocalEnv("GMAIL_POLL_MINUTES")) || 10;
                 const pollSeconds = pollMinutes * 60;
                 const afterTimestamp = Math.floor((Date.now() - (pollSeconds * 1000)) / 1000);
                 
@@ -635,7 +635,7 @@ async function handleSubsLabels(resolver) {
 
 export async function subsEmails(resolver) {
     await handleSubsEmails(resolver);
-    const intervalMinutes = parseInt(process.env.GMAIL_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("GMAIL_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`GMAIL RESOLVER: Setting emails polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -645,7 +645,7 @@ export async function subsEmails(resolver) {
 
 export async function subsLabels(resolver) {
     await handleSubsLabels(resolver);
-    const intervalMinutes = parseInt(process.env.GMAIL_POLL_INTERVAL_MINUTES) || 15;
+    const intervalMinutes = parseInt(getLocalEnv("GMAIL_POLL_INTERVAL_MINUTES")) || 15;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`GMAIL RESOLVER: Setting labels polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {

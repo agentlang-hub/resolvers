@@ -1,6 +1,6 @@
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
-
-const makeInstance = al_module.makeInstance
+// Import agentlang modules
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
 
 function asInstance(entity, entityType) {
     const instanceMap = new Map(Object.entries(entity))
@@ -30,10 +30,10 @@ async function getAccessToken() {
         return cachedToken;
     }
 
-    const directToken = process.env.ZOOM_ACCESS_TOKEN;
-    const accountId = process.env.ZOOM_ACCOUNT_ID;
-    const clientId = process.env.ZOOM_CLIENT_ID;
-    const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+    const directToken = getLocalEnv("ZOOM_ACCESS_TOKEN");
+    const accountId = getLocalEnv("ZOOM_ACCOUNT_ID");
+    const clientId = getLocalEnv("ZOOM_CLIENT_ID");
+    const clientSecret = getLocalEnv("ZOOM_CLIENT_SECRET");
 
     // Method 1: Direct access token
     if (directToken) {
@@ -88,7 +88,7 @@ async function getAccessToken() {
 
 // Generic HTTP functions
 const makeRequest = async (endpoint, options = {}) => {
-    const baseUrl = process.env.ZOOM_BASE_URL || 'https://api.zoom.us/v2'
+    const baseUrl = getLocalEnv("ZOOM_BASE_URL") || 'https://api.zoom.us/v2'
     
     let accessToken;
     try {

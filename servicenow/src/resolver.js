@@ -1,10 +1,8 @@
-const al_http = await import(`${process.cwd()}/node_modules/agentlang/out/utils/http.js`)
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
-const al_integmanager = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/integrations.js`)
-
-const encodeForBasicAuth = al_http.encodeForBasicAuth
-const makeInstance = al_module.makeInstance
-const isInstanceOfType = al_module.isInstanceOfType
+// Import agentlang modules
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance, isInstanceOfType } from "agentlang/out/runtime/module.js";
+import { encodeForBasicAuth } from "agentlang/out/utils/http.js";
+import { getIntegrationConfig } from "agentlang/out/runtime/integrations.js";
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
     const controller = new AbortController()
@@ -34,7 +32,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
 
 function getConfig(k) {
     try {
-        return al_integmanager.getIntegrationConfig('servicenow', k)
+        return getIntegrationConfig('servicenow', k)
     } catch (e) {
         console.error(`Failed to retrieve ServiceNow configuration for key '${k}':`, e.message);
         return undefined;
@@ -46,7 +44,7 @@ function getSelectedSysIds(tableType) {
     if (!config) {
         return null
     }
-    const envValue = process.env[config.envVar]
+    const envValue = getLocalEnv(config.envVar)
     if (!envValue) {
         return null
     }
@@ -57,7 +55,7 @@ let instUrl = undefined
 
 function getInstanceUrl() {
     if (instUrl == undefined) {
-        instUrl = getConfig('url') || process.env.SERVICENOW_INSTANCE_URL
+        instUrl = getConfig('url') || getLocalEnv("SERVICENOW_INSTANCE_URL")
     }
     return instUrl
 }
@@ -66,9 +64,9 @@ let accessToken = undefined
 let tokenExpiry = undefined
 
 function isOAuthConfigured() {
-    const clientId = getConfig('client_id') || process.env.SERVICENOW_CLIENT_ID
-    const clientSecret = getConfig('client_secret') || process.env.SERVICENOW_CLIENT_SECRET
-    const refreshToken = getConfig('refresh_token') || process.env.SERVICENOW_REFRESH_TOKEN
+    const clientId = getConfig('client_id') || getLocalEnv("SERVICENOW_CLIENT_ID")
+    const clientSecret = getConfig('client_secret') || getLocalEnv("SERVICENOW_CLIENT_SECRET")
+    const refreshToken = getConfig('refresh_token') || getLocalEnv("SERVICENOW_REFRESH_TOKEN")
     return !!(clientId && clientSecret && refreshToken)
 }
 
@@ -77,9 +75,9 @@ async function getAccessToken() {
         return accessToken
     }
 
-    const clientId = getConfig('client_id') || process.env.SERVICENOW_CLIENT_ID
-    const clientSecret = getConfig('client_secret') || process.env.SERVICENOW_CLIENT_SECRET
-    const refreshToken = getConfig('refresh_token') || process.env.SERVICENOW_REFRESH_TOKEN
+    const clientId = getConfig('client_id') || getLocalEnv("SERVICENOW_CLIENT_ID")
+    const clientSecret = getConfig('client_secret') || getLocalEnv("SERVICENOW_CLIENT_SECRET")
+    const refreshToken = getConfig('refresh_token') || getLocalEnv("SERVICENOW_REFRESH_TOKEN")
     const instanceUrl = getInstanceUrl()
 
     if (!clientId || !clientSecret || !refreshToken) {
@@ -124,8 +122,8 @@ async function getAccessToken() {
 }
 
 async function makeStandardHeaders() {
-    const username = getConfig('username') || process.env.SERVICENOW_USERNAME
-    const password = getConfig('password') || process.env.SERVICENOW_PASSWORD
+    const username = getConfig('username') || getLocalEnv("SERVICENOW_USERNAME")
+    const password = getConfig('password') || getLocalEnv("SERVICENOW_PASSWORD")
     
     if (username && password) {
         return {
@@ -237,7 +235,7 @@ async function getRecords(sysId, count, tableType = Task) {
         const sysIdQuery = selectedSysIds.map(id => `sys_id=${id}`).join('^OR^')
         apiUrl = `${instanceUrl}/api/now/table/${config.tableName}?sysparm_limit=${count}&sysparm_query=${sysIdQuery}`
     } else {
-        apiUrl = `${instanceUrl}/api/now/table/${config.tableName}?sysparm_limit=${count}&sysparm_query=active=true^sys_created_on>=javascript:gs.hoursAgoStart(${process.env.SERVICENOW_HOURS_AGO || 100000})^ORDERBYDESCsys_created_on`
+        apiUrl = `${instanceUrl}/api/now/table/${config.tableName}?sysparm_limit=${count}&sysparm_query=active=true^sys_created_on>=javascript:gs.hoursAgoStart(${getLocalEnv("SERVICENOW_HOURS_AGO") || 100000})^ORDERBYDESCsys_created_on`
     }
     let statusFilter = '^stateIN1,2'
     if (apiUrl.includes('sysparm_query=')) {
@@ -443,7 +441,7 @@ async function handleSubsTasks(resolver) {
 
 export async function subsIncidents(resolver) {
     await handleSubsIncidents(resolver)
-    const intervalMinutes = parseInt(process.env.SERVICENOW_POLL_INTERVAL_MINUTES) || 10
+    const intervalMinutes = parseInt(getLocalEnv("SERVICENOW_POLL_INTERVAL_MINUTES")) || 10
     const intervalMs = intervalMinutes * 60 * 1000
     console.log(`Setting ServiceNow polling interval to ${intervalMinutes} minutes`)
     setInterval(async () => {
@@ -453,7 +451,7 @@ export async function subsIncidents(resolver) {
 
 export async function subsTasks(resolver) {
     await handleSubsTasks(resolver)
-    const intervalMinutes = parseInt(process.env.SERVICENOW_POLL_INTERVAL_MINUTES) || 10
+    const intervalMinutes = parseInt(getLocalEnv("SERVICENOW_POLL_INTERVAL_MINUTES")) || 10
     const intervalMs = intervalMinutes * 60 * 1000
     console.log(`Setting ServiceNow polling interval to ${intervalMinutes} minutes`)
     setInterval(async () => {
@@ -470,7 +468,7 @@ export function assignTask(sys_id, userEmail) {
 }
 
 export async function getManagerUser() {
-    const managerUsername = process.env.SERVICENOW_MANAGER_USERNAME || process.env.MANAGER_USERNAME
+    const managerUsername = getLocalEnv("SERVICENOW_MANAGER_USERNAME") || getLocalEnv("MANAGER_USERNAME")
     if (!managerUsername) {
         console.error('Manager username not found in environment variables')
         return null

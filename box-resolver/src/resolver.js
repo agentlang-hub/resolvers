@@ -1,6 +1,6 @@
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
-
-const makeInstance = al_module.makeInstance
+// Import agentlang modules
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
 
 // Mapper functions for Box API responses to Agentlang entities
 function toFile(file) {
@@ -32,8 +32,8 @@ function toUser(user) {
 }
 
 function asInstance(entity, entityType) {
-    const instanceMap = new Map(Object.entries(entity))
-    return makeInstance('box', entityType, instanceMap)
+  const instanceMap = new Map(Object.entries(entity));
+  return makeInstance("box", entityType, instanceMap);
 }
 
 const getResponseBody = async (response) => {
@@ -73,11 +73,11 @@ async function getAccessToken() {
         return accessToken;
     }
 
-    const directToken = process.env.BOX_ACCESS_TOKEN;
-    const clientId = process.env.BOX_CLIENT_ID;
-    const clientSecret = process.env.BOX_CLIENT_SECRET;
-    const authCode = process.env.BOX_AUTH_CODE;
-    const refreshToken = process.env.BOX_REFRESH_TOKEN;
+    const directToken = getLocalEnv("BOX_ACCESS_TOKEN");
+    const clientId = getLocalEnv("BOX_CLIENT_ID");
+    const clientSecret = getLocalEnv("BOX_CLIENT_SECRET");
+    const authCode = getLocalEnv("BOX_AUTH_CODE");
+    const refreshToken = getLocalEnv("BOX_REFRESH_TOKEN");
 
     // Method 1: Direct access token
     if (directToken) {
@@ -181,7 +181,7 @@ async function getAccessToken() {
 
 // Generic HTTP functions
 const makeRequest = async (endpoint, options = {}) => {
-    let token = process.env.BOX_ACCESS_TOKEN;
+    let token = getLocalEnv("BOX_ACCESS_TOKEN");
     
     // If no direct token provided, try to get one via OAuth2
     if (!token) {
@@ -286,7 +286,7 @@ const makeDeleteRequest = async (endpoint, options = {}) => {
 const makeMultipartRequest = async (endpoint, formData, useUploadUrl = false) => {
     console.log(`BOX RESOLVER: Making multipart request to Box: ${endpoint}\n`);
     
-    let token = process.env.BOX_ACCESS_TOKEN;
+    let token = getLocalEnv("BOX_ACCESS_TOKEN");
     
     // If no direct token provided, try to get one via OAuth2
     if (!token) {
@@ -355,7 +355,7 @@ const makeMultipartRequest = async (endpoint, formData, useUploadUrl = false) =>
 const makeFileContentRequest = async (endpoint) => {
     console.log(`BOX RESOLVER: Downloading file content from Box: ${endpoint}\n`);
     
-    let token = process.env.BOX_ACCESS_TOKEN;
+    let token = getLocalEnv("BOX_ACCESS_TOKEN");
     
     // If no direct token provided, try to get one via OAuth2
     if (!token) {
@@ -827,7 +827,7 @@ async function handleSubsUsers(resolver) {
 
 export async function subsFiles(resolver) {
     await handleSubsFiles(resolver);
-    const intervalMinutes = parseInt(process.env.BOX_POLL_INTERVAL_MINUTES) || 60;
+    const intervalMinutes = parseInt(getLocalEnv("BOX_POLL_INTERVAL_MINUTES")) || 60;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`BOX RESOLVER: Setting files polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -837,7 +837,7 @@ export async function subsFiles(resolver) {
 
 export async function subsFolders(resolver) {
     await handleSubsFolders(resolver);
-    const intervalMinutes = parseInt(process.env.BOX_POLL_INTERVAL_MINUTES) || 60;
+    const intervalMinutes = parseInt(getLocalEnv("BOX_POLL_INTERVAL_MINUTES")) || 60;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`BOX RESOLVER: Setting folders polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -847,7 +847,7 @@ export async function subsFolders(resolver) {
 
 export async function subsUsers(resolver) {
     await handleSubsUsers(resolver);
-    const intervalMinutes = parseInt(process.env.BOX_POLL_INTERVAL_MINUTES) || 60;
+    const intervalMinutes = parseInt(getLocalEnv("BOX_POLL_INTERVAL_MINUTES")) || 60;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`BOX RESOLVER: Setting users polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {

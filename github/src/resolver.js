@@ -1,6 +1,6 @@
-const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
-
-const makeInstance = al_module.makeInstance
+// Import agentlang modules
+import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
+import { makeInstance } from "agentlang/out/runtime/module.js";
 
 // Mapper functions for GitHub API responses to Agentlang entities
 function toIssue(issue, owner, repo) {
@@ -62,8 +62,8 @@ function toUser(user) {
 }
 
 function asInstance(entity, entityType) {
-    const instanceMap = new Map(Object.entries(entity))
-    return makeInstance('github', entityType, instanceMap)
+  const instanceMap = new Map(Object.entries(entity));
+  return makeInstance("github", entityType, instanceMap);
 }
 
 const getResponseBody = async (response) => {
@@ -89,14 +89,14 @@ async function getAccessToken() {
         return accessToken;
     }
 
-    const directToken = process.env.GITHUB_ACCESS_TOKEN;
-    const clientId = process.env.GITHUB_CLIENT_ID;
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-    const authCode = process.env.GITHUB_AUTH_CODE;
-    const refreshToken = process.env.GITHUB_REFRESH_TOKEN;
-    const githubApp = process.env.GITHUB_APP_PRIVATE_KEY;
-    const githubAppId = process.env.GITHUB_APP_ID;
-    const githubInstallationId = process.env.GITHUB_INSTALLATION_ID;
+    const directToken = getLocalEnv("GITHUB_ACCESS_TOKEN");
+    const clientId = getLocalEnv("GITHUB_CLIENT_ID");
+    const clientSecret = getLocalEnv("GITHUB_CLIENT_SECRET");
+    const authCode = getLocalEnv("GITHUB_AUTH_CODE");
+    const refreshToken = getLocalEnv("GITHUB_REFRESH_TOKEN");
+    const githubApp = getLocalEnv("GITHUB_APP_PRIVATE_KEY");
+    const githubAppId = getLocalEnv("GITHUB_APP_ID");
+    const githubInstallationId = getLocalEnv("GITHUB_INSTALLATION_ID");
 
     // Method 1: Direct access token
     if (directToken) {
@@ -240,7 +240,7 @@ async function getAccessToken() {
 
 // Generic HTTP functions
 const makeRequest = async (endpoint, options = {}) => {
-    let token = process.env.GITHUB_ACCESS_TOKEN;
+    let token = getLocalEnv("GITHUB_ACCESS_TOKEN");
     
     // If no direct token provided, try to get one via OAuth2 or GitHub App
     if (!token) {
@@ -813,7 +813,7 @@ async function handleSubsRepositories(resolver) {
 
 export async function subsIssues(resolver) {
     await handleSubsIssues(resolver);
-    const intervalMinutes = parseInt(process.env.GITHUB_POLL_INTERVAL_MINUTES) || 30;
+    const intervalMinutes = parseInt(getLocalEnv("GITHUB_POLL_INTERVAL_MINUTES")) || 30;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`GITHUB RESOLVER: Setting issues polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
@@ -823,7 +823,7 @@ export async function subsIssues(resolver) {
 
 export async function subsRepositories(resolver) {
     await handleSubsRepositories(resolver);
-    const intervalMinutes = parseInt(process.env.GITHUB_POLL_INTERVAL_MINUTES) || 30;
+    const intervalMinutes = parseInt(getLocalEnv("GITHUB_POLL_INTERVAL_MINUTES")) || 30;
     const intervalMs = intervalMinutes * 60 * 1000;
     console.log(`GITHUB RESOLVER: Setting repositories polling interval to ${intervalMinutes} minutes`);
     setInterval(async () => {
