@@ -1,0 +1,9 @@
+{
+  "name": "airtable",
+  "version": "0.0.1",
+  "type": "module",
+  "dependencies": {
+    "agentlang": "^0.8.2",
+    "sqlite3": "^5.1.7"
+  }
+}
