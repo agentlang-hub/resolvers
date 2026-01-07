@@ -163,3 +163,4 @@ resolver freshdesk9 [freshdesk/CreateContactOutput] {
     query fr.queryCreateContact
 }
 
+
