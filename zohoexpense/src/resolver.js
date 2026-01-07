@@ -13,7 +13,7 @@ const trimTrailingSlash = (val) => val?.replace(/\/+$/, "") || val;
 const getApiBaseUrl = () => trimTrailingSlash(getLocalEnv("ZOHO_EXPENSE_BASE_URL")) || "https://www.zohoapis.com";
 
 const getAccountsBaseUrl = () => {
-    const env = trimTrailingSlash(getLocalEnv("ZOHO_EXPENSE_ACCOUNTS_URL"));
+    const env = trimTrailingSlash(getLocalEnv("ZOHO_EXPENSE_ACCOUNTS_URL") || process.env.ZOHO_EXPENSE_ACCOUNTS_URL);
     if (env) return env;
 
     const apiBase = getApiBaseUrl();
@@ -35,7 +35,7 @@ const getOrganizationId = () => {
 };
 
 const getTimeoutMs = () => {
-    const val = getLocalEnv("ZOHO_EXPENSE_TIMEOUT_MS");
+    const val = getLocalEnv("ZOHO_EXPENSE_TIMEOUT_MS") || process.env.ZOHO_EXPENSE_TIMEOUT_MS;
     const num = Number(val);
     return Number.isFinite(num) && num > 0 ? num : 30000;
 };
@@ -77,7 +77,7 @@ async function exchangeToken(params) {
         tokenExpiry = Date.now() + (Number(body.expires_in) - 60) * 1000;
     }
 
-    if (body.refresh_token && !getLocalEnv("ZOHO_EXPENSE_REFRESH_TOKEN")) {
+    if (body.refresh_token && !(getLocalEnv("ZOHO_EXPENSE_REFRESH_TOKEN") || process.env.ZOHO_EXPENSE_REFRESH_TOKEN)) {
         console.log("ZOHO EXPENSE RESOLVER: received refresh_token; set ZOHO_EXPENSE_REFRESH_TOKEN to reuse");
     }
 
@@ -96,11 +96,11 @@ async function getAccessToken() {
         return accessToken;
     }
 
-    const clientId = getLocalEnv("ZOHO_EXPENSE_CLIENT_ID");
-    const clientSecret = getLocalEnv("ZOHO_EXPENSE_CLIENT_SECRET");
-    const redirectUri = getLocalEnv("ZOHO_EXPENSE_REDIRECT_URL");
-    const authCode = getLocalEnv("ZOHO_EXPENSE_AUTH_CODE");
-    const refreshToken = getLocalEnv("ZOHO_EXPENSE_REFRESH_TOKEN");
+    const clientId = getLocalEnv("ZOHO_EXPENSE_CLIENT_ID") || process.env.ZOHO_EXPENSE_CLIENT_ID;
+    const clientSecret = getLocalEnv("ZOHO_EXPENSE_CLIENT_SECRET") || process.env.ZOHO_EXPENSE_CLIENT_SECRET;
+    const redirectUri = getLocalEnv("ZOHO_EXPENSE_REDIRECT_URL") || process.env.ZOHO_EXPENSE_REDIRECT_URL;
+    const authCode = getLocalEnv("ZOHO_EXPENSE_AUTH_CODE") || process.env.ZOHO_EXPENSE_AUTH_CODE;
+    const refreshToken = getLocalEnv("ZOHO_EXPENSE_REFRESH_TOKEN") || process.env.ZOHO_EXPENSE_REFRESH_TOKEN;
 
     if (clientId && clientSecret && refreshToken) {
         const params = new URLSearchParams({
