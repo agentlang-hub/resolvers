@@ -378,3 +378,4 @@ The resolver uses the Freshdesk REST API v2:
 - Agent IDs in groups are handled as comma-separated strings
 - The resolver automatically handles pagination for list queries (limited to 100 records per query)
 
+
