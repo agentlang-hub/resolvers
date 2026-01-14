@@ -13,17 +13,7 @@ const trimTrailingSlash = (val) => val?.replace(/\/+$/, "") || val;
 const getApiBaseUrl = () => trimTrailingSlash(getLocalEnv("ZOHO_EXPENSE_BASE_URL")) || "https://www.zohoapis.com";
 
 const getAccountsBaseUrl = () => {
-    const env = trimTrailingSlash(getLocalEnv("ZOHO_EXPENSE_ACCOUNTS_URL") || process.env.ZOHO_EXPENSE_ACCOUNTS_URL);
-    if (env) return env;
-
-    const apiBase = getApiBaseUrl();
-    try {
-        const parsed = new URL(apiBase);
-        const accountsHost = parsed.host.replace("zohoapis", "accounts");
-        return `${parsed.protocol}//${accountsHost}`;
-    } catch {
-        return "https://accounts.zoho.com";
-    }
+    return getLocalEnv("ZOHO_EXPENSE_ACCOUNTS_URL") || process.env.ZOHO_EXPENSE_ACCOUNTS_URL || "https://accounts.zoho.com";
 };
 
 const getOrganizationId = () => {
@@ -55,7 +45,7 @@ const getResponseBody = async (response) => {
 
 async function exchangeToken(params) {
     const tokenUrl = `${getAccountsBaseUrl()}/oauth/v2/token`;
-    console.log(`ZOHO EXPENSE RESOLVER: requesting token from ${tokenUrl} with grant_type=${params.get("grant_type")}`);
+    console.log(`ZOHO EXPENSE RESOLVER111: requesting token from ${tokenUrl} with grant_type=${params.get("grant_type")}`);
 
     const response = await fetch(tokenUrl, {
         method: "POST",
@@ -146,14 +136,10 @@ const toExpense = (expense) => ({
 
 const toReport = (report) => ({
     id: report?.report_id || report?.id,
-    name: report?.report_name || report?.name,
+    report_name: report?.report_name || report?.name,
     status: report?.status || report?.review_status,
-    total: toNumber(report?.total ?? report?.amount),
-    currency: report?.currency_code || report?.currency,
-    submitted_time: report?.submitted_time || report?.submitted_at,
-    approved_time: report?.approved_time || report?.approved_at,
-    last_modified_time: report?.last_modified_time || report?.updated_at,
-    owner: report?.owner || report?.submitted_by || report?.user_name
+    start_date: report?.start_date,
+    end_date: report?.end_date
 });
 
 const toCurrency = (currency) => ({
@@ -189,11 +175,11 @@ const makeRequest = async (endpoint, options = {}, queryParams = {}) => {
     });
 
     // Only set organization_id if endpoint is expenses
-    if (
-        !url.searchParams.has("organization_id") &&
-        (url.pathname.includes("/expenses") || url.pathname.includes("/expenses/"))
-    ) {
-        url.searchParams.set("organization_id", orgId);
+    if (!url.searchParams.has("organization_id")) {
+        const orgScopedPaths = ["/expenses", "/expensereports", "/expensecategories"];
+        if (orgScopedPaths.some((path) => url.pathname.includes(path))) {
+            url.searchParams.set("organization_id", orgId);
+        }
     }
 
     const headers = {
@@ -291,10 +277,10 @@ export const createExpense = async (env, attributes) => {
             body: JSON.stringify(payload)
         });
 
-        const expenseData = response.expense || response.data || response;
+        const expenseData = response.expenses[0];
         const mapped = toExpense(expenseData);
 
-        return mapped.id ? asInstance(mapped, "Expense") : { result: "success", message: "Expense created" };
+        return asInstance(mapped, "Expense");
     } catch (error) {
         console.error(`ZOHO EXPENSE RESOLVER: Failed to create expense: ${error}`);
         return { result: "error", message: error.message };
@@ -306,21 +292,165 @@ export const queryReport = async (env, attrs) => {
     const queryVals = attrs.queryAttributeValues || new Map();
 
     try {
+        const allowedKeys = [
+            "report_id",
+            "report_name",
+            "description",
+            "report_number",
+            "start_date",
+            "end_date",
+            "status"
+        ];
+
         if (id) {
-            const payload = await makeRequest(`/reports/${id}`, { method: "GET" });
-            const report = payload.report || payload.data || payload;
-            return [asInstance(toReport(report), "Report")];
+            const payload = await makeRequest(`/expensereports/${id}`, { method: "GET" });
+            let report = payload.expense_report || payload.data || payload;
+            // If allowed keys are present in queryVals, filter the returned report accordingly
+            let filtered = {};
+            let anyFilter = false;
+            allowedKeys.forEach((key) => {
+                if (queryVals.get(key)) {
+                    anyFilter = true;
+                    if (report?.[key] !== undefined) {
+                        if (String(report[key]) === String(queryVals.get(key))) {
+                            filtered[key] = report[key];
+                        }
+                    }
+                }
+            });
+            if (anyFilter) {
+                // Only include the report if all filter keys match
+                const allMatch = Object.keys(filtered).length === Array.from(queryVals.keys()).filter(k => allowedKeys.includes(k) && queryVals.get(k)).length;
+                if (allMatch) {
+                    // Optionally, return only the filtered keys, or the whole report with original allowed fields minus non-matching
+                    // We'll return only the allowed keys (match AL code below)
+                    let result = {};
+                    allowedKeys.forEach((k) => {
+                        if (report?.[k] !== undefined) result[k] = report[k];
+                    });
+                    return [result];
+                } else {
+                    return [];
+                }
+            } else {
+                // No extra filter, just return allowed keys
+                let result = {};
+                allowedKeys.forEach((k) => {
+                    if (report?.[k] !== undefined) result[k] = report[k];
+                });
+                return [result];
+            }
         }
 
         const query = {};
-        ["status", "page", "per_page", "from", "to", "updated_time"].forEach((key) => {
+        allowedKeys.forEach((key) => {
             if (queryVals.get(key)) query[key] = queryVals.get(key);
         });
-        const payload = await makeRequest("/reports", { method: "GET" }, query);
-        const reports = payload.reports || payload.data || [];
-        return reports.map((rep) => asInstance(toReport(rep), "Report"));
+
+        const payload = await makeRequest("/expensereports", { method: "GET" }, query);
+        const reports = payload.expense_reports || payload.data || [];
+        return reports.map((r) => {
+            // Return only the allowed attributes
+            let filtered = {};
+            allowedKeys.forEach((k) => {
+                if (r?.[k] !== undefined) filtered[k] = r[k];
+            });
+            return filtered;
+        });
     } catch (error) {
         console.error(`ZOHO EXPENSE RESOLVER: Failed to query reports: ${error}`);
+        return { result: "error", message: error.message };
+    }
+};
+
+export const createReport = async (env, attributes) => {
+    const attrs = attributes.attributes || new Map();
+    try {
+        const payload = attrs.get("payload") || {};
+
+        const candidateFields = {
+            report_name: attrs.get("report_name"),
+            description: attrs.get("description"),
+            start_date: attrs.get("start_date"),
+            end_date: attrs.get("end_date"),
+        };
+
+        Object.entries(candidateFields).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== "") {
+                payload[key] = val;
+            }
+        });
+
+        const response = await makeRequest("/expensereports", {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+
+        const reportData = response.expense_report || response.data || response;
+        const mapped = toReport(reportData);
+
+        return mapped.id ? asInstance(mapped, "Report") : { result: "success", message: "Report created" };
+    } catch (error) {
+        console.error(`ZOHO EXPENSE RESOLVER: Failed to create report: ${error}`);
+        return { result: "error", message: error.message };
+    }
+};
+
+export const addExpenseToReport = async (reportId, expenseId) => {
+    try {
+        if (!reportId) {
+            throw new Error("report_id is required");
+        }
+        if (!expenseId) {
+            throw new Error("expense_id is required");
+        }
+
+        const normalizeId = (val) => {
+            if (val === undefined || val === null) return null;
+            if (typeof val === "string") return val.trim();
+            if (typeof val === "number") return String(val);
+            if (typeof val === "object" && (val.expense_id || val.id)) return String(val.expense_id || val.id);
+            return null;
+        };
+
+        // Fetch existing report to collect already linked expenses
+        const currentReportPayload = await makeRequest(`/expensereports/${reportId}`, { method: "GET" });
+        const currentReport = currentReportPayload.expense_report || currentReportPayload.data || currentReportPayload;
+        const existingExpensesRaw = currentReport?.expenses || currentReportPayload?.expenses || [];
+
+        const existingIds = [];
+        if (Array.isArray(existingExpensesRaw)) {
+            existingExpensesRaw.forEach((item) => {
+                const id = normalizeId(item);
+                if (id) existingIds.push(id);
+            });
+        } else if (currentReport?.expense_ids) {
+            // Some payloads may expose expense_ids separately
+            const idsVal = currentReport.expense_ids;
+            const list = Array.isArray(idsVal) ? idsVal : String(idsVal).split(",");
+            list.forEach((idVal) => {
+                const id = normalizeId(idVal);
+                if (id) existingIds.push(id);
+            });
+        }
+
+        const newId = normalizeId(expenseId);
+        const allIds = [newId, ...existingIds].filter(Boolean);
+        const dedupedIds = Array.from(new Set(allIds));
+
+        const response = await makeRequest(`/expensereports/${reportId}`, {
+            method: "PUT",
+            body: JSON.stringify({ expenses: dedupedIds.map((id) => ({ expense_id: id })) })
+        });
+
+        const reportData = response.expense_report || response.data || response;
+        const mapped = toReport(reportData);
+
+        return mapped.id
+            ? asInstance(mapped, "Report")
+            : { result: "success", message: "Expense added to report", report_id: reportId };
+    } catch (error) {
+        console.error(`ZOHO EXPENSE RESOLVER: Failed to add expenses to report: ${error}`);
         return { result: "error", message: error.message };
     }
 };

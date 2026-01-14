@@ -19,14 +19,19 @@ entity Expense {
 
 entity Report {
     id String @optional,
-    name String @optional,
+    report_name String @optional,
+    description String @optional,
     status String @optional,
-    total Number @optional,
-    currency String @optional,
-    submitted_time String @optional,
-    approved_time String @optional,
-    last_modified_time String @optional,
-    owner String @optional
+    start_date String @optional,
+    end_date String @optional
+}
+
+@public workflow FetchAllReports {
+    {Report? {}}
+}
+
+@public workflow AddExpenseToReport {
+    zexp.addExpenseToReport(AddExpenseToReport.report_id, AddExpenseToReport.expense_id)
 }
 
 resolver zohoexpense1 [zohoexpense/Expense] {
@@ -35,6 +40,7 @@ resolver zohoexpense1 [zohoexpense/Expense] {
 }
 
 resolver zohoexpense2 [zohoexpense/Report] {
+    create zexp.createReport,
     query zexp.queryReport
 }
 
