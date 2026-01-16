@@ -30,6 +30,11 @@ entity Report {
     {Report? {}}
 }
 
+@public event AddExpenseToReport {
+    report_id String,
+    expense_id String
+}
+
 @public workflow AddExpenseToReport {
     zexp.addExpenseToReport(AddExpenseToReport.report_id, AddExpenseToReport.expense_id)
 }
