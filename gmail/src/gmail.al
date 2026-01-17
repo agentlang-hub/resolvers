@@ -4,6 +4,7 @@ import "resolver.js" @as gmr
 
 entity Attachments {
     filename String @optional,
+    file_path String @optional,
     mime_type String @optional,
     size Number @optional,
     attachment_id String @optional

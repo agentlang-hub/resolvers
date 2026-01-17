@@ -1,3 +1,7 @@
+import fs from "fs";
+import path from "path";
+import { randomUUID } from "crypto";
+
 const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
 
 const makeInstance = al_module.makeInstance
@@ -57,6 +61,7 @@ function processParts(parts, bodyObj, attachments) {
             if (part.mimeType && part.body?.size !== undefined && part.body?.size !== null) {
                 attachments.push({
                     filename: part.filename,
+                    file_path: null,
                     mime_type: part.mimeType,
                     size: part.body.size,
                     attachment_id: part.body.attachmentId
@@ -73,6 +78,31 @@ function asInstance(entity, entityType) {
     const instanceMap = new Map(Object.entries(entity))
     return makeInstance('gmail', entityType, instanceMap)
 }
+
+const shouldDownloadAttachments = () => {
+    const flag = process.env.GMAIL_DOWNLOAD_ATTACHMENTS;
+    if (!flag) return false;
+    const normalized = String(flag).toLowerCase();
+    return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+};
+
+const ensureFsDir = async () => {
+    const target = path.join(process.cwd(), "fs");
+    await fs.promises.mkdir(target, { recursive: true });
+    return target;
+};
+
+const saveAttachmentFile = async (filename, base64Data) => {
+    const dir = await ensureFsDir();
+    const ext = path.extname(filename || "");
+    const base = path.basename(filename || "attachment", ext) || "attachment";
+    const uniqueName = ext ? `${base}-${randomUUID()}${ext}` : `${base}-${randomUUID()}`;
+    const filePath = path.join(dir, uniqueName);
+    const normalized = base64Data.replace(/-/g, "+").replace(/_/g, "/");
+    const buffer = Buffer.from(normalized, "base64");
+    await fs.promises.writeFile(filePath, buffer);
+    return filePath;
+};
 
 const getResponseBody = async (response) => {
     try {
@@ -605,6 +635,27 @@ async function getAndProcessRecords(resolver, entityType) {
                     };
                 }, {}) || {};
                 const mappedData = toEmail(messageDetail, headers);
+
+                if (shouldDownloadAttachments() && Array.isArray(mappedData.attachments) && mappedData.attachments.length) {
+                    for (const attachment of mappedData.attachments) {
+                        try {
+                            const attachmentId = attachment?.attachment_id;
+                            if (!attachmentId) continue;
+                            const attachmentPayload = await makeGetRequest(`/gmail/v1/users/me/messages/${message.id}/attachments/${attachmentId}`);
+                            const data = attachmentPayload?.data;
+                            if (!data) {
+                                console.warn(`GMAIL RESOLVER: Attachment ${attachmentId} has no data, skipping`);
+                                continue;
+                            }
+                            const savedPath = await saveAttachmentFile(attachment.filename || "attachment", data);
+                            attachment.file_path = savedPath;
+                            console.log(`GMAIL RESOLVER: Saved attachment ${attachment.filename || attachmentId} to ${savedPath}`);
+                        } catch (err) {
+                            console.error(`GMAIL RESOLVER: Failed to download attachment for message ${message.id}`, err);
+                        }
+                    }
+                }
+
                 const entityInstance = asInstance(mappedData, 'Email');
                 await resolver.onSubscription(entityInstance, true);
             }
@@ -652,3 +703,4 @@ export async function subsLabels(resolver) {
         await handleSubsLabels(resolver);
     }, intervalMs);
 }
+
