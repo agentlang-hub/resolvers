@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { getLocalEnv } from "agentlang/out/runtime/auth/defs.js";
 
 const al_module = await import(`${process.cwd()}/node_modules/agentlang/out/runtime/module.js`)
@@ -159,11 +161,31 @@ const toExpenseCategory = (category) => ({
     type: category?.type || category?.category_type
 });
 
+const guessMimeType = (filename) => {
+    const ext = (path.extname(filename) || "").toLowerCase();
+    switch (ext) {
+        case ".pdf":
+            return "application/pdf";
+        case ".jpg":
+        case ".jpeg":
+            return "image/jpeg";
+        case ".png":
+            return "image/png";
+        case ".gif":
+            return "image/gif";
+        case ".heic":
+            return "image/heic";
+        default:
+            return "application/octet-stream";
+    }
+};
+
 const makeRequest = async (endpoint, options = {}, queryParams = {}) => {
     const token = await getAccessToken();
     const orgId = getOrganizationId();
     const baseApi = getApiBaseUrl();
     const timeoutMs = getTimeoutMs();
+    const isFormData = typeof FormData !== "undefined" && options?.body instanceof FormData;
 
     const rawUrl = endpoint.startsWith("http") ? endpoint : `${baseApi}/expense/v1${endpoint}`;
     const url = new URL(rawUrl);
@@ -184,7 +206,7 @@ const makeRequest = async (endpoint, options = {}, queryParams = {}) => {
 
     const headers = {
         Authorization: `Zoho-oauthtoken ${token}`,
-        ...(options.method && options.method !== "GET" ? { "Content-Type": "application/json" } : {}),
+        ...(options.method && options.method !== "GET" && !isFormData ? { "Content-Type": "application/json" } : {}),
         ...options.headers
     };
 
@@ -511,6 +533,56 @@ export const queryExpenseCategory = async (env, attrs) => {
         return categories
     } catch (error) {
         console.error(`ZOHO EXPENSE RESOLVER: Failed to query expense categories: ${error}`);
+        return { result: "error", message: error.message };
+    }
+};
+
+export const createExpenseAttachment = async (env, attributes) => {
+    const attrs = attributes.attributes || new Map();
+    const expenseId = attrs.get("expense_id")
+    const fileName = attrs.get("file_name")
+    const filePath = attrs.get("file_path")
+
+    try {
+        if (!expenseId) {
+            throw new Error("expense_id is required");
+        }
+
+        if (!fileName) {
+            throw new Error("file_name is required");
+        }
+
+        let absolutePath;
+        if (filePath) {
+            absolutePath = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), "fs/" + filePath);
+        } else if (fileName) {
+            absolutePath = path.isAbsolute(fileName) ? fileName : path.join(process.cwd(), "fs/" + fileName);
+        } else {
+            throw new Error("file_name or file_path is required");
+        }
+
+        const stat = await fs.promises.stat(absolutePath);
+        if (!stat.isFile()) {
+            throw new Error("file_name must point to a file");
+        }
+        const contentType = attrs.get("content_type") || attrs.get("mime_type") || guessMimeType(fileName);
+        const buffer = await fs.promises.readFile(absolutePath);
+
+        const formData = new FormData();
+        formData.append("organization_id", getOrganizationId());
+        formData.append("attachment", new Blob([buffer], { type: contentType }), fileName);
+        const jsonString = JSON.stringify({"expense_id": expenseId});
+        formData.append("JSONString", jsonString);
+
+        const payload = await makeRequest(`/expenses/${expenseId}`, {
+            method: "PUT",
+            body: formData
+        });
+
+        const expense = payload.expense || payload.data || payload;
+        return asInstance(toExpense(expense), "Expense");
+    } catch (error) {
+        console.error(`ZOHO EXPENSE RESOLVER: Failed to create expense attachment: ${error}`);
         return { result: "error", message: error.message };
     }
 };

@@ -67,6 +67,14 @@ entity ExpenseCategory {
     type String @optional
 }
 
+entity ExpenseAttachment {
+    id String @optional,
+    expense_id String @optional,
+    file_name String @optional,
+    file_path String @optional,
+    content_type String @optional
+}
+
 resolver zohoexpense3 [zohoexpense/Currency] {
     query zexp.queryCurrency
 }
@@ -75,3 +83,6 @@ resolver zohoexpense4 [zohoexpense/ExpenseCategory] {
     query zexp.queryExpenseCategory
 }
 
+resolver zohoexpense5 [zohoexpense/ExpenseAttachment] {
+    create zexp.createExpenseAttachment
+}
