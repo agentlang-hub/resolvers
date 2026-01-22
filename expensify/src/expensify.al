@@ -75,7 +75,6 @@ resolver expensify3 [expensify/Policy] {
 }
 
 agent expensifyAgent {
-    llm "ticketflow_llm",
     role "You are an app responsible for managing Expensify expense data including expenses, reports, and policies."
     instruction "You are an app responsible for managing Expensify expense data. You can create, read, update, and delete:
                     - Expenses: Individual expense items with merchant, amount, category, and receipt information

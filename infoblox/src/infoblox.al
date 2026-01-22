@@ -101,7 +101,6 @@ resolver ib7 [infoblox/Network] {
 }
 
 agent infobloxAgent {
-    llm "ticketflow_llm",
     role "You are a an app responsible for adding entities to Infoblox, given name and ip address."
     instruction "You are a an app responsible for adding entities to Infoblox, given name and ip address. Only act if instructions contain DNS. Otherwise, ignore. For instance:
                     For instruction: create dns record of type AAAA with name <name> and ipv6addr <ip>, use appropriate tool to add the host to Infoblox.

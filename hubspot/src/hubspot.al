@@ -129,7 +129,6 @@ resolver hubspot5 [hubspot/Task] {
 }
 
 agent hubspotAgent {
-    llm "ticketflow_llm",
     role "You are an app responsible for managing HubSpot CRM data including contacts, companies, deals, owners, and tasks."
     instruction "You are an app responsible for managing HubSpot CRM data. You can create, read, update, and delete:
                     - Contacts: Customer contact information and details

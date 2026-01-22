@@ -143,7 +143,6 @@ resolver salesforce6 [salesforce/Article] {
 }
 
 agent salesforceAgent {
-    llm "ticketflow_llm",
     role "You are an app responsible for managing Salesforce CRM data including contacts, leads, accounts, opportunities, tickets, and articles."
     instruction "You are an app responsible for managing Salesforce CRM data. You can create, read, update, and delete:
                     - Contacts: Customer contact information and details
