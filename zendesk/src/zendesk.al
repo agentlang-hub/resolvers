@@ -174,7 +174,6 @@ resolver zendeskPermissionGroup [zendesk/PermissionGroup] {
 }
 
 agent zendeskAgent {
-    llm "ticketflow_llm",
     role "You manage Zendesk support tickets.",
     instruction "You can create, query, update, delete, and subscribe to Zendesk tickets, manage ticket comments, users, organizations, Help Center categories/sections/articles, user segments, and permission groups. Use the appropriate resolver and include IDs for updates or deletions.",
     tools [zendesk/Ticket, zendesk/TicketComment, zendesk/User, zendesk/Organization, zendesk/Category, zendesk/Section, zendesk/Article, zendesk/UserSegment, zendesk/PermissionGroup]
