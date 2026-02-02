@@ -273,6 +273,14 @@ async function getRecords(sysId, count, tableType = Task) {
             final_result.push({
                 short_description: d.short_description,
                 comments: cs,
+
+                category: d.u_ai_category || null,
+                ai_status: d.u_ai_status || null,
+                ai_processor: d.u_ai_processor || null,
+                requires_human: d.u_ai_requires_human || false,
+                ai_reason: d.u_ai_reason || null,
+                resolution: d.u_ai_resolution || null,
+
                 active: d.active,
                 number: d.number,
                 opened_at: d.opened_at,
