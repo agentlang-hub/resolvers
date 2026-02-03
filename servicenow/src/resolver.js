@@ -250,6 +250,7 @@ function buildUpdatePayload(newAttrs, entityType) {
         Object.entries(INCIDENT_FIELD_MAP).forEach(([key, target]) => {
             const value = newAttrs.get(key)
             if (value !== undefined) {
+                console.log(`SERVICENOW RESOLVER: Mapping field ${key}=${value} to ${target}`)
                 payload[target] = value
             }
         })
@@ -468,8 +469,13 @@ const MAX_RESULTS=100
 export async function queryInstances(resolver, inst, queryAll, tableType = Incident) {
     const entityType = getEntityType(inst)
     if (entityType) {
-        const s = inst.lookupQueryVal('sys_id').split('/')
-        const sys_id = s ? s[0] : undefined
+        const sysIdValue = inst.lookupQueryVal('sys_id')
+        let sys_id = undefined
+        if (sysIdValue) {
+            // Handle both "id/table" format and plain id format
+            const parts = sysIdValue.split('/')
+            sys_id = parts[0]
+        }
         let r = []
         if (sys_id) {
             r = await getRecords(sys_id, queryAll ? MAX_RESULTS : 1, tableType)
