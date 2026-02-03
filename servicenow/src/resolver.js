@@ -420,13 +420,16 @@ function getEntityType(inst) {
 }
 
 function getSysId(inst) {
-    const s = inst.lookup('sys_id')
+    const s = inst.lookup('sys_id') || inst.lookupQueryVal('sys_id')
+    if (!s || typeof s !== 'string') return null
     return s.split('/')[0]
 }
 
 function getSysType(inst) {
-    const s = inst.lookup('sys_id')
-    return s.split('/')[1]
+    const s = inst.lookup('sys_id') || inst.lookupQueryVal('sys_id')
+    if (!s || typeof s !== 'string') return getEntityType(inst)
+    const parts = s.split('/')
+    return parts[1] || getEntityType(inst)
 }
 
 function asInstance(data, sys_id, entityType, status = null) {
@@ -446,8 +449,12 @@ export async function updateInstance(resolver, inst, newAttrs) {
 
     if (entityType) {
         const sys_id = getSysId(inst)
-        const table = getSysType(inst)
+        const table = getSysType(inst) || entityType
         const updateData = buildUpdatePayload(newAttrs, entityType)
+
+        if (!sys_id) {
+            throw new Error(`Missing sys_id for update of ${entityType}. Ensure the outgoing instance sets 'sys_id' or 'sys_id?'.`)
+        }
 
         // Enhanced logging for debugging
         console.log(`SERVICENOW RESOLVER: Updating ${entityType} ${sys_id}`)
@@ -506,7 +513,7 @@ async function getAndProcessRecords(resolver, tableType) {
     if (result instanceof Array) {
         for (let i = 0; i < result.length; ++i) {
             const record = result[i]
-            const typeOut = tableType === 'incident' ? 'SC_TASK: TASK#' : 'SC_INCIDENT: INC#';
+            const typeOut = tableType === 'incident' ? 'SC_INCIDENT: INC#' : 'SC_TASK: TASK#';
             console.log(`Start processing ${typeOut}: ${record.sys_id} ${record.short_description}`)
             const desc = record.description || [record.short_description, record.comments].filter(Boolean).join('\n')
             const data = {...record, description: desc}
