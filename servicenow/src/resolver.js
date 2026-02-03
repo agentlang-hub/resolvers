@@ -188,6 +188,74 @@ const TABLE_CONFIG = {
 const Incident = 'incident'
 const Task = 'task'
 
+const INCIDENT_FIELD_MAP = {
+    category: 'u_ai_category',
+    ai_status: 'u_ai_status',
+    ai_processor: 'u_ai_processor',
+    requires_human: 'u_ai_requires_human',
+    ai_reason: 'u_ai_reason',
+    resolution: 'u_ai_resolution'
+}
+
+function toPlainObject(value) {
+    if (!value) return value
+    if (value instanceof Map) {
+        const obj = {}
+        for (const [key, val] of value.entries()) {
+            obj[key] = val
+        }
+        return obj
+    }
+    return value
+}
+
+function toBoolean(value) {
+    if (value === true || value === 'true' || value === 1 || value === '1') return true
+    if (value === false || value === 'false' || value === 0 || value === '0' || value === null || value === undefined) return false
+    return Boolean(value)
+}
+
+function normalizeUpdateData(rawData) {
+    const payload = (rawData && typeof rawData === 'object' && !Array.isArray(rawData)) ? {...rawData} : {}
+    if (payload.comment !== undefined && payload.comments === undefined) {
+        payload.comments = payload.comment
+        delete payload.comment
+    }
+    if (payload.work_note !== undefined && payload.work_notes === undefined) {
+        payload.work_notes = payload.work_note
+        delete payload.work_note
+    }
+    return payload
+}
+
+function applyIncidentFieldMappings(payload) {
+    Object.entries(INCIDENT_FIELD_MAP).forEach(([key, target]) => {
+        if (payload[key] !== undefined && payload[target] === undefined) {
+            payload[target] = payload[key]
+        }
+        if (payload[key] !== undefined) {
+            delete payload[key]
+        }
+    })
+}
+
+function buildUpdatePayload(newAttrs, entityType) {
+    const rawData = toPlainObject(newAttrs.get('data'))
+    const payload = normalizeUpdateData(rawData)
+
+    if (entityType === Incident) {
+        applyIncidentFieldMappings(payload)
+        Object.entries(INCIDENT_FIELD_MAP).forEach(([key, target]) => {
+            const value = newAttrs.get(key)
+            if (value !== undefined) {
+                payload[target] = value
+            }
+        })
+    }
+
+    return payload
+}
+
 async function addCloseNotes(sysId, comment, tableType = Incident) {
     const config = TABLE_CONFIG[tableType]
     if (!config) {
@@ -261,23 +329,25 @@ async function getRecords(sysId, count, tableType = Task) {
             const d = data[i]
             const comments = config.hasComments ? await getComments(d.sys_id) : undefined
             let cs = ''
-	    if (comments) {
-		comments.forEach(element => {
+            if (comments) {
+                comments.forEach(element => {
                     if (element.value.length > 15) {
-			cs = `${cs}\n${element.value}`
+                        cs = `${cs}\n${element.value}`
                     }
-		});
-	    } else {
-		cs = d.description
-	    }
+                });
+            } else {
+                cs = d.description
+            }
+            const description = [d.short_description, cs].filter(Boolean).join('\n')
             final_result.push({
                 short_description: d.short_description,
                 comments: cs,
+                description: description,
 
                 category: d.u_ai_category || null,
                 ai_status: d.u_ai_status || null,
                 ai_processor: d.u_ai_processor || null,
-                requires_human: d.u_ai_requires_human || false,
+                requires_human: toBoolean(d.u_ai_requires_human),
                 ai_reason: d.u_ai_reason || null,
                 resolution: d.u_ai_resolution || null,
 
@@ -372,7 +442,12 @@ export async function updateInstance(resolver, inst, newAttrs) {
     if (entityType) {
         const sys_id = getSysId(inst)
         const table = getSysType(inst)
-        let r = await updateRecord(sys_id, newAttrs.get('data'), entityType)
+        const updateData = buildUpdatePayload(newAttrs, entityType)
+        if (!updateData || Object.keys(updateData).length === 0) {
+            console.log(`SERVICENOW RESOLVER: No update fields for ${entityType} ${sys_id}`)
+            return asInstance({}, `${sys_id}/${table}`, entityType)
+        }
+        const r = await updateRecord(sys_id, updateData, entityType)
         return asInstance(r, `${sys_id}/${table}`, entityType)
     } else {
         throw new Error(`Cannot update instance ${inst}`)
@@ -418,8 +493,9 @@ async function getAndProcessRecords(resolver, tableType) {
             const record = result[i]
             const typeOut = tableType === 'incident' ? 'SC_TASK: TASK#' : 'SC_INCIDENT: INC#';
             console.log(`Start processing ${typeOut}: ${record.sys_id} ${record.short_description}`)
-            const desc = `${record.short_description}.${record.comments ? record.comments : ''}`
-            const inst = asInstance(JSON.stringify({description: desc}), `${record.sys_id}/${tableType}`, tableType, record.state_display || record.state)
+            const desc = record.description || [record.short_description, record.comments].filter(Boolean).join('\n')
+            const data = {...record, description: desc}
+            const inst = asInstance(data, `${record.sys_id}/${tableType}`, tableType, record.state_display || record.state)
             await resolver.onSubscription(inst, true)
         }
     }
