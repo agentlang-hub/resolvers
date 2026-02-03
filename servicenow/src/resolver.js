@@ -230,10 +230,12 @@ function normalizeUpdateData(rawData) {
 
 function applyIncidentFieldMappings(payload) {
     Object.entries(INCIDENT_FIELD_MAP).forEach(([key, target]) => {
+        // Only map if source exists and target doesn't already have a value
         if (payload[key] !== undefined && payload[target] === undefined) {
             payload[target] = payload[key]
-        }
-        if (payload[key] !== undefined) {
+            delete payload[key]  // Only delete after successful mapping
+        } else if (payload[key] !== undefined && payload[target] !== undefined) {
+            // Target already has a value, just remove the unmapped key
             delete payload[key]
         }
     })
@@ -244,13 +246,15 @@ function buildUpdatePayload(newAttrs, entityType) {
     const payload = normalizeUpdateData(rawData)
 
     if (entityType === Incident) {
-        applyIncidentFieldMappings(payload)
+        // First, add direct attribute mappings to payload
         Object.entries(INCIDENT_FIELD_MAP).forEach(([key, target]) => {
             const value = newAttrs.get(key)
             if (value !== undefined) {
                 payload[target] = value
             }
         })
+        // Then apply field mappings from data object (won't override direct attributes)
+        applyIncidentFieldMappings(payload)
     }
 
     return payload
@@ -438,11 +442,16 @@ function asInstance(data, sys_id, entityType, status = null) {
 
 export async function updateInstance(resolver, inst, newAttrs) {
     const entityType = getEntityType(inst)
-    
+
     if (entityType) {
         const sys_id = getSysId(inst)
         const table = getSysType(inst)
         const updateData = buildUpdatePayload(newAttrs, entityType)
+
+        // Enhanced logging for debugging
+        console.log(`SERVICENOW RESOLVER: Updating ${entityType} ${sys_id}`)
+        console.log(`SERVICENOW RESOLVER: Update payload:`, JSON.stringify(updateData, null, 2))
+
         if (!updateData || Object.keys(updateData).length === 0) {
             console.log(`SERVICENOW RESOLVER: No update fields for ${entityType} ${sys_id}`)
             return asInstance({}, `${sys_id}/${table}`, entityType)
