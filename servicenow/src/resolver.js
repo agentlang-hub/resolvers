@@ -426,10 +426,12 @@ function getSysId(inst) {
 }
 
 function getSysType(inst) {
+    // Prefer explicit entity type; fall back to parsing sys_id if it contains a suffix like "<id>/<type>"
+    const explicit = getEntityType(inst)
     const s = inst.lookup('sys_id') || inst.lookupQueryVal('sys_id')
-    if (!s || typeof s !== 'string') return getEntityType(inst)
+    if (!s || typeof s !== 'string') return explicit
     const parts = s.split('/')
-    return parts[1] || getEntityType(inst)
+    return parts[1] || explicit
 }
 
 function asInstance(data, sys_id, entityType, status = null) {
@@ -437,7 +439,11 @@ function asInstance(data, sys_id, entityType, status = null) {
     if (!config) {
         throw new Error(`Unknown entity type: ${entityType}`)
     }
-    const instanceMap = new Map().set('data', data).set('sys_id', sys_id)
+    // Keep sys_id as the raw SNOW id; put the fully-qualified path into __path__ for runtime utilities
+    const instanceMap = new Map()
+        .set('data', data)
+        .set('sys_id', sys_id)
+        .set('__path__', `servicenow/${entityType}/${sys_id}`)
     if (status !== null) {
         instanceMap.set('status', status)
     }
@@ -448,6 +454,11 @@ export async function updateInstance(resolver, inst, newAttrs) {
     const entityType = getEntityType(inst)
 
     if (entityType) {
+        const sysIdAttr = inst.lookup('sys_id')
+        const sysIdQuery = inst.lookupQueryVal('sys_id')
+        const sysPath = inst.lookup('__path__')
+        console.log(`SERVICENOW RESOLVER: updateInstance inbound ids -> attr sys_id=${JSON.stringify(sysIdAttr)}, query sys_id=${JSON.stringify(sysIdQuery)}, __path__=${JSON.stringify(sysPath)}`)
+
         const sys_id = getSysId(inst)
         const table = getSysType(inst) || entityType
         const updateData = buildUpdatePayload(newAttrs, entityType)
@@ -462,10 +473,10 @@ export async function updateInstance(resolver, inst, newAttrs) {
 
         if (!updateData || Object.keys(updateData).length === 0) {
             console.log(`SERVICENOW RESOLVER: No update fields for ${entityType} ${sys_id}`)
-            return asInstance({}, `${sys_id}/${table}`, entityType)
+            return asInstance({}, sys_id, entityType)
         }
         const r = await updateRecord(sys_id, updateData, entityType)
-        return asInstance(r, `${sys_id}/${table}`, entityType)
+        return asInstance(r, sys_id, entityType)
     } else {
         throw new Error(`Cannot update instance ${inst}`)
     }
@@ -494,7 +505,7 @@ export async function queryInstances(resolver, inst, queryAll, tableType = Incid
         if (!(r instanceof Array)) {
             r = [r]
         }
-        return r.map((data) => { return asInstance(data, `${data.sys_id}/${tableType}`, entityType, data.state_display || data.state) })
+        return r.map((data) => { return asInstance(data, data.sys_id, entityType, data.state_display || data.state) })
     } else {
         return []
     }
@@ -517,7 +528,7 @@ async function getAndProcessRecords(resolver, tableType) {
             console.log(`Start processing ${typeOut}: ${record.sys_id} ${record.short_description}`)
             const desc = record.description || [record.short_description, record.comments].filter(Boolean).join('\n')
             const data = {...record, description: desc}
-            const inst = asInstance(data, `${record.sys_id}/${tableType}`, tableType, record.state_display || record.state)
+            const inst = asInstance(data, record.sys_id, tableType, record.state_display || record.state)
             await resolver.onSubscription(inst, true)
         }
     }
