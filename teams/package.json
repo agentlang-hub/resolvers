@@ -1,0 +1,8 @@
+{
+    "name": "teams",
+    "version": "0.0.1",
+    "icon": "devicon:microsoftteams",
+    "dependencies": {
+      "agentlang": "*"
+    }
+}
