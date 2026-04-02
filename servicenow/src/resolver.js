@@ -188,6 +188,79 @@ const TABLE_CONFIG = {
 const Incident = 'incident'
 const Task = 'task'
 
+const INCIDENT_FIELD_MAP = {
+    category: 'u_ai_category',
+    ai_status: 'u_ai_status',
+    ai_processor: 'u_ai_processor',
+    requires_human: 'u_ai_requires_human',
+    ai_reason: 'u_ai_reason',
+    resolution: 'u_ai_resolution'
+}
+
+function toPlainObject(value) {
+    if (!value) return value
+    if (value instanceof Map) {
+        const obj = {}
+        for (const [key, val] of value.entries()) {
+            obj[key] = val
+        }
+        return obj
+    }
+    return value
+}
+
+function toBoolean(value) {
+    if (value === true || value === 'true' || value === 1 || value === '1') return true
+    if (value === false || value === 'false' || value === 0 || value === '0' || value === null || value === undefined) return false
+    return Boolean(value)
+}
+
+function normalizeUpdateData(rawData) {
+    const payload = (rawData && typeof rawData === 'object' && !Array.isArray(rawData)) ? {...rawData} : {}
+    if (payload.comment !== undefined && payload.comments === undefined) {
+        payload.comments = payload.comment
+        delete payload.comment
+    }
+    if (payload.work_note !== undefined && payload.work_notes === undefined) {
+        payload.work_notes = payload.work_note
+        delete payload.work_note
+    }
+    return payload
+}
+
+function applyIncidentFieldMappings(payload) {
+    Object.entries(INCIDENT_FIELD_MAP).forEach(([key, target]) => {
+        // Only map if source exists and target doesn't already have a value
+        if (payload[key] !== undefined && payload[target] === undefined) {
+            payload[target] = payload[key]
+            delete payload[key]  // Only delete after successful mapping
+        } else if (payload[key] !== undefined && payload[target] !== undefined) {
+            // Target already has a value, just remove the unmapped key
+            delete payload[key]
+        }
+    })
+}
+
+function buildUpdatePayload(newAttrs, entityType) {
+    const rawData = toPlainObject(newAttrs.get('data'))
+    const payload = normalizeUpdateData(rawData)
+
+    if (entityType === Incident) {
+        // First, add direct attribute mappings to payload
+        Object.entries(INCIDENT_FIELD_MAP).forEach(([key, target]) => {
+            const value = newAttrs.get(key)
+            if (value !== undefined) {
+                console.log(`SERVICENOW RESOLVER: Mapping field ${key}=${value} to ${target}`)
+                payload[target] = value
+            }
+        })
+        // Then apply field mappings from data object (won't override direct attributes)
+        applyIncidentFieldMappings(payload)
+    }
+
+    return payload
+}
+
 async function addCloseNotes(sysId, comment, tableType = Incident) {
     const config = TABLE_CONFIG[tableType]
     if (!config) {
@@ -261,18 +334,28 @@ async function getRecords(sysId, count, tableType = Task) {
             const d = data[i]
             const comments = config.hasComments ? await getComments(d.sys_id) : undefined
             let cs = ''
-	    if (comments) {
-		comments.forEach(element => {
+            if (comments) {
+                comments.forEach(element => {
                     if (element.value.length > 15) {
-			cs = `${cs}\n${element.value}`
+                        cs = `${cs}\n${element.value}`
                     }
-		});
-	    } else {
-		cs = d.description
-	    }
+                });
+            } else {
+                cs = d.description
+            }
+            const description = [d.short_description, cs].filter(Boolean).join('\n')
             final_result.push({
                 short_description: d.short_description,
                 comments: cs,
+                description: description,
+
+                category: d.u_ai_category || null,
+                ai_status: d.u_ai_status || null,
+                ai_processor: d.u_ai_processor || null,
+                requires_human: toBoolean(d.u_ai_requires_human),
+                ai_reason: d.u_ai_reason || null,
+                resolution: d.u_ai_resolution || null,
+
                 active: d.active,
                 number: d.number,
                 opened_at: d.opened_at,
@@ -337,13 +420,18 @@ function getEntityType(inst) {
 }
 
 function getSysId(inst) {
-    const s = inst.lookup('sys_id')
+    const s = inst.lookup('sys_id') || inst.lookupQueryVal('sys_id')
+    if (!s || typeof s !== 'string') return null
     return s.split('/')[0]
 }
 
 function getSysType(inst) {
-    const s = inst.lookup('sys_id')
-    return s.split('/')[1]
+    // Prefer explicit entity type; fall back to parsing sys_id if it contains a suffix like "<id>/<type>"
+    const explicit = getEntityType(inst)
+    const s = inst.lookup('sys_id') || inst.lookupQueryVal('sys_id')
+    if (!s || typeof s !== 'string') return explicit
+    const parts = s.split('/')
+    return parts[1] || explicit
 }
 
 function asInstance(data, sys_id, entityType, status = null) {
@@ -351,7 +439,11 @@ function asInstance(data, sys_id, entityType, status = null) {
     if (!config) {
         throw new Error(`Unknown entity type: ${entityType}`)
     }
-    const instanceMap = new Map().set('data', data).set('sys_id', sys_id)
+    // Keep sys_id as the raw SNOW id; put the fully-qualified path into __path__ for runtime utilities
+    const instanceMap = new Map()
+        .set('data', data)
+        .set('sys_id', sys_id)
+        .set('__path__', `servicenow/${entityType}/${sys_id}`)
     if (status !== null) {
         instanceMap.set('status', status)
     }
@@ -360,12 +452,31 @@ function asInstance(data, sys_id, entityType, status = null) {
 
 export async function updateInstance(resolver, inst, newAttrs) {
     const entityType = getEntityType(inst)
-    
+
     if (entityType) {
+        const sysIdAttr = inst.lookup('sys_id')
+        const sysIdQuery = inst.lookupQueryVal('sys_id')
+        const sysPath = inst.lookup('__path__')
+        console.log(`SERVICENOW RESOLVER: updateInstance inbound ids -> attr sys_id=${JSON.stringify(sysIdAttr)}, query sys_id=${JSON.stringify(sysIdQuery)}, __path__=${JSON.stringify(sysPath)}`)
+
         const sys_id = getSysId(inst)
-        const table = getSysType(inst)
-        let r = await updateRecord(sys_id, newAttrs.get('data'), entityType)
-        return asInstance(r, `${sys_id}/${table}`, entityType)
+        const table = getSysType(inst) || entityType
+        const updateData = buildUpdatePayload(newAttrs, entityType)
+
+        if (!sys_id) {
+            throw new Error(`Missing sys_id for update of ${entityType}. Ensure the outgoing instance sets 'sys_id' or 'sys_id?'.`)
+        }
+
+        // Enhanced logging for debugging
+        console.log(`SERVICENOW RESOLVER: Updating ${entityType} ${sys_id}`)
+        console.log(`SERVICENOW RESOLVER: Update payload:`, JSON.stringify(updateData, null, 2))
+
+        if (!updateData || Object.keys(updateData).length === 0) {
+            console.log(`SERVICENOW RESOLVER: No update fields for ${entityType} ${sys_id}`)
+            return asInstance({}, sys_id, entityType)
+        }
+        const r = await updateRecord(sys_id, updateData, entityType)
+        return asInstance(r, sys_id, entityType)
     } else {
         throw new Error(`Cannot update instance ${inst}`)
     }
@@ -376,8 +487,13 @@ const MAX_RESULTS=100
 export async function queryInstances(resolver, inst, queryAll, tableType = Incident) {
     const entityType = getEntityType(inst)
     if (entityType) {
-        const s = inst.lookupQueryVal('sys_id').split('/')
-        const sys_id = s ? s[0] : undefined
+        const sysIdValue = inst.lookupQueryVal('sys_id')
+        let sys_id = undefined
+        if (sysIdValue) {
+            // Handle both "id/table" format and plain id format
+            const parts = sysIdValue.split('/')
+            sys_id = parts[0]
+        }
         let r = []
         if (sys_id) {
             r = await getRecords(sys_id, queryAll ? MAX_RESULTS : 1, tableType)
@@ -389,7 +505,7 @@ export async function queryInstances(resolver, inst, queryAll, tableType = Incid
         if (!(r instanceof Array)) {
             r = [r]
         }
-        return r.map((data) => { return asInstance(data, `${data.sys_id}/${tableType}`, entityType, data.state_display || data.state) })
+        return r.map((data) => { return asInstance(data, data.sys_id, entityType, data.state_display || data.state) })
     } else {
         return []
     }
@@ -408,10 +524,11 @@ async function getAndProcessRecords(resolver, tableType) {
     if (result instanceof Array) {
         for (let i = 0; i < result.length; ++i) {
             const record = result[i]
-            const typeOut = tableType === 'incident' ? 'SC_TASK: TASK#' : 'SC_INCIDENT: INC#';
+            const typeOut = tableType === 'incident' ? 'SC_INCIDENT: INC#' : 'SC_TASK: TASK#';
             console.log(`Start processing ${typeOut}: ${record.sys_id} ${record.short_description}`)
-            const desc = `${record.short_description}.${record.comments ? record.comments : ''}`
-            const inst = asInstance(JSON.stringify({description: desc}), `${record.sys_id}/${tableType}`, tableType, record.state_display || record.state)
+            const desc = record.description || [record.short_description, record.comments].filter(Boolean).join('\n')
+            const data = {...record, description: desc}
+            const inst = asInstance(data, record.sys_id, tableType, record.state_display || record.state)
             await resolver.onSubscription(inst, true)
         }
     }

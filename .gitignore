@@ -4,3 +4,4 @@ db-*
 pnpm-lock.yaml
 node_modules/
 .env
+.idea

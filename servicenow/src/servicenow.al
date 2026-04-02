@@ -5,7 +5,13 @@ import "resolver.js" @as r
 entity incident {
     sys_id String @id,
     status String @optional,
-    data Any @optional
+    data Any @optional,
+    category String @optional,
+    ai_status String @optional,
+    ai_processor String @optional,
+    requires_human Boolean @optional,
+    ai_reason String @optional,
+    resolution String @optional
 }
 
 entity task {
